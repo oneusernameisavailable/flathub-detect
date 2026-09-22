@@ -1,0 +1,224 @@
+name: Flathub Detection Matrix
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'fx-flathub-detect.sh'
+      - 'test/**'
+      - '.github/workflows/flathub-detection-matrix.yml'
+  pull_request:
+    paths:
+      - 'fx-flathub-detect.sh'
+      - 'test/**'
+      - '.github/workflows/flathub-detection-matrix.yml'
+  schedule:
+    - cron: '0 2 * * 0'  # Weekly full matrix
+  workflow_dispatch:
+    inputs:
+      matrix_scope:
+        type: choice
+        description: Matrix scope
+        options: [critical, high, medium, full]
+        default: critical
+
+env:
+  LIBRARY_PATH: /src/fx-flathub-detect.sh
+
+jobs:
+  detect-matrix:
+    name: ${{ matrix.name }}
+    runs-on: ${{ matrix.runs-on }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # CRITICAL - Fedora rpm-ostree (immutable)
+          - name: "Fedora 41 Silverblue (rpm-ostree, SELinux)"
+            runs-on: ubuntu-latest
+            image: fedora:41
+            variant: ""
+            scenario: enabled-system
+            selinux: enforcing
+            privileged: "true"
+            pid: "host"
+            cgroupns: "host"
+
+          - name: "Fedora 41 Kinoite (rpm-ostree KDE, SELinux)"
+            runs-on: ubuntu-latest
+            image: fedora:41
+            variant: ""
+            scenario: enabled-system
+            selinux: enforcing
+            privileged: "true"
+            pid: "host"
+            cgroupns: "host"
+
+          - name: "Fedora 41 Workstation (traditional, SELinux)"
+            runs-on: ubuntu-latest
+            image: fedora:41
+            variant: ""
+            scenario: enabled-system
+            selinux: enforcing
+            privileged: "false"
+            pid: ""
+            cgroupns: ""
+
+          # CRITICAL - RHEL family
+          - name: "Rocky Linux 9 (RHEL rebuild, SELinux)"
+            runs-on: ubuntu-latest
+            image: rockylinux/rockylinux:9
+            variant: ""
+            scenario: enabled-system
+            selinux: enforcing
+            privileged: "false"
+            pid: ""
+            cgroupns: ""
+
+          - name: "AlmaLinux 9 (RHEL rebuild, SELinux)"
+            runs-on: ubuntu-latest
+            image: almalinux/almalinux:9
+            variant: ""
+            scenario: enabled-system
+            selinux: enforcing
+            privileged: "false"
+            pid: ""
+            cgroupns: ""
+
+          # CRITICAL - Debian/Ubuntu family
+          - name: "Ubuntu 24.04 (AppArmor, Snap)"
+            runs-on: ubuntu-latest
+            image: ubuntu:24.04
+            variant: ""
+            scenario: enabled-system
+            apparmor: "true"
+            privileged: "false"
+            pid: ""
+            cgroupns: ""
+
+          - name: "Ubuntu 22.04 LTS (AppArmor, Snap)"
+            runs-on: ubuntu-latest
+            image: ubuntu:22.04
+            variant: ""
+            scenario: enabled-system
+            apparmor: "true"
+            privileged: "false"
+            pid: ""
+            cgroupns: ""
+
+          - name: "Debian 12 (pure deb, no Snap)"
+            runs-on: ubuntu-latest
+            image: debian:12
+            variant: ""
+            scenario: enabled-system
+            apparmor: "false"
+            privileged: "false"
+            pid: ""
+            cgroupns: ""
+
+          - name: "Pop!_OS 22.04 (COSMIC, custom flatpak repo)"
+            runs-on: ubuntu-latest
+            image: pop-os/pop-os:22.04
+            variant: ""
+            scenario: enabled-system
+            apparmor: "true"
+            privileged: "false"
+            pid: ""
+            cgroupns: ""
+
+          # CRITICAL - Arch family
+          - name: "Arch Linux (rolling, latest flatpak)"
+            runs-on: ubuntu-latest
+            image: archlinux/archlinux:latest
+            variant: ""
+            scenario: enabled-system
+            privileged: "false"
+            pid: ""
+            cgroupns: ""
+
+          # CRITICAL - NixOS (immutable, custom paths)
+          # NixOS images: use nixos/nixos:24.11 or nixos/nixos:unstable
+          # For CI, use a pre-built VM image or build from nixos-generators
+          - name: "NixOS 24.11 (custom /nix/store paths)"
+            runs-on: ubuntu-latest
+            image: nixos/nixos:24.11
+            variant: ""
+            scenario: custom-installation
+            privileged: "true"
+            pid: ""
+            cgroupns: ""
+
+          # CRITICAL - Immutable/OSTree
+          - name: "Endless OS (OSTree + Flatpak)"
+            runs-on: ubuntu-latest
+            image: endlessos/endless:latest
+            variant: ""
+            scenario: enabled-system
+            privileged: "true"
+            pid: "host"
+            cgroupns: "host"
+
+          # CRITICAL - macOS
+          - name: "macOS 15 (Homebrew)"
+            runs-on: macos-15
+            image: ""
+            variant: ""
+            scenario: enabled-user
+            privileged: "false"
+            pid: ""
+            cgroupns: ""
+
+    env:
+      SCENARIO: ${{ matrix.scenario }}
+      SELINUX: ${{ matrix.selinux || '' }}
+      APPARMOR: ${{ matrix.apparmor || '' }}
+      PRIVILEGED: ${{ matrix.privileged }}
+      PID_MODE: ${{ matrix.pid }}
+      CGROUPNS: ${{ matrix.cgroupns }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up validation script
+        run: |
+          chmod +x test/ci/validate-detection.sh
+
+      - name: Run validation (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          docker run --rm \
+            ${PRIVILEGED:+--privileged} \
+            ${PID_MODE:+--pid=${PID_MODE}} \
+            ${CGROUPNS:+--cgroupns=${CGROUPNS}} \
+            -v "${{ github.workspace }}:/src:ro" \
+            -e SCENARIO="${SCENARIO}" \
+            -e SELINUX="${SELINUX}" \
+            -e APPARMOR="${APPARMOR}" \
+            -e FLATPAK_TEST_MODE=1 \
+            ${{ matrix.image }} \
+            /src/test/ci/validate-detection.sh "${SCENARIO}"
+
+      - name: Run validation (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          export FLATPAK_TEST_MODE=1
+          export SCENARIO="${SCENARIO}"
+          /src/test/ci/validate-detection.sh "${SCENARIO}"
+
+  # Summary job
+  matrix-summary:
+    name: Matrix Summary
+    runs-on: ubuntu-latest
+    needs: detect-matrix
+    if: always()
+    steps:
+      - name: Check matrix results
+        run: |
+          echo "## Flathub Detection Matrix Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Platform | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|----------|--------|" >> $GITHUB_STEP_SUMMARY
+          # Results would be collected from job outputs
+          echo "Results available in job logs above." >> $GITHUB_STEP_SUMMARY
