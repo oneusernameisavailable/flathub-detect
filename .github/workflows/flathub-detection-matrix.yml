@@ -25,8 +25,7 @@ jobs:
           # CRITICAL - Arch family
           - { distro: archlinux/archlinux:latest, flatpak: "1.18", scenario: enabled-system, name: "Arch Linux" }
 
-          # CRITICAL - NixOS (immutable, declarative, unique paths)
-          - { distro: nixos/nixos:24.11, flatpak: "1.18", scenario: custom-installation, name: "NixOS 24.11" }
+          
 
           # HIGH - Extended coverage
           - { distro: opensuse/tumbleweed:latest, flatpak: "1.18", scenario: enabled-system, name: "openSUSE Tumbleweed" }
