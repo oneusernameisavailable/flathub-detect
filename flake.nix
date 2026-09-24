@@ -33,11 +33,14 @@
               };
             };
 
+            # Build VM image - use a different approach to avoid config scope issues
             system.build.vm = pkgs.runCommandLocal "nixos-vm" {
               buildInputs = [ pkgs.qemu ];
+              # Pass the toplevel path as an argument
+              toplevel = config.system.build.toplevel;
             } ''
               mkdir -p $out
-              ${config.system.build.toplevel}/bin/run-nixos-vm -m 1024 -c 2 -snapshot -nographic > $out/run-vm.sh
+              ${toplevel}/bin/run-nixos-vm -m 1024 -c 2 -snapshot -nographic > $out/run-vm.sh
               chmod +x $out/run-vm.sh
             '';
           }
