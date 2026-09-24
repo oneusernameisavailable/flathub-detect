@@ -1,0 +1,56 @@
+name: NixOS VM Test
+on: [push, pull_request, schedule]
+
+jobs:
+  nixos-vm-test:
+    name: NixOS VM - Custom Installation Test
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Nix
+        uses: DeterminateSystems/nix-installer-action@v9
+        with:
+          extra-conf: |
+            experimental-features = nix-command flakes
+
+      - name: Build NixOS VM
+        run: |
+          nix build .#flathub-test-vm -L --out-link ./nixos-vm
+          ls -la ./nixos-vm/
+
+      - name: Run NixOS VM and Test
+        run: |
+          # Start VM in background
+          ./result/run-vm.sh &
+          VM_PID=$!
+          
+          # Wait for VM to boot
+          echo "Waiting for VM to boot..."
+          sleep 30
+          
+          # Test SSH connectivity
+          for i in {1..10}; do
+            if ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=5 -o StrictHostKeyChecking=no root@localhost -p 2222 "echo 'SSH ready'" 2>/dev/null; then
+              echo "SSH ready!"
+              break
+            fi
+            echo "Waiting for SSH... ($i/10)"
+            sleep 10
+          done
+          
+          # Run validation script in VM
+          ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -p 2222 root@localhost "
+            source /src/fx-flathub-detect.sh
+            flathub_detect
+            echo 'STATE:' \$FLATHUB_STATE
+            echo 'SCOPE:' \$FLATHUB_SCOPE
+            echo 'ENABLED:' \$FLATHUB_ENABLED
+            [[ \"\$FLATHUB_STATE\" == \"enabled\" ]] && [[ \"\$FLATHUB_SCOPE\" == *extra* ]] && echo 'PASS' || (echo 'FAIL' && exit 1)
+          "
+          
+          # Cleanup
+          kill $VM_PID 2>/dev/null || true
+        timeout-minutes: 15
