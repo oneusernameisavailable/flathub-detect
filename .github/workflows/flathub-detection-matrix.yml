@@ -39,8 +39,16 @@ jobs:
       - uses: actions/checkout@v4
       - name: Run validation
         run: |
-          docker run --rm --privileged \
-            -v ${{ github.workspace }}:/src \
-            ${{ matrix.distro }} \
-            /src/test/ci/validate-detection.sh ${{ matrix.scenario }} ${{ matrix.selinux || '' }} ${{ matrix.apparmor || '' }}
+          # For Alpine, need to install bash first since validation script needs bash
+          if [[ "${{ matrix.distro }}" == alpine:* ]]; then
+            docker run --rm --privileged \
+              -v ${{ github.workspace }}:/src \
+              ${{ matrix.distro }} \
+              sh -c "apk add --no-cache bash && /src/test/ci/validate-detection.sh ${{ matrix.scenario }} ${{ matrix.selinux || '' }} ${{ matrix.apparmor || '' }}"
+          else
+            docker run --rm --privileged \
+              -v ${{ github.workspace }}:/src \
+              ${{ matrix.distro }} \
+              /src/test/ci/validate-detection.sh ${{ matrix.scenario }} ${{ matrix.selinux || '' }} ${{ matrix.apparmor || '' }}
+          fi
         timeout-minutes: 15
