@@ -33,10 +33,8 @@
               };
             };
 
-            # Build VM image - pass toplevel as explicit argument
-            system.build.vm = let
-              toplevel = config.system.build.toplevel;
-            in pkgs.runCommandLocal "nixos-vm" {
+            # Build VM image - define toplevel inside the module body where config is available
+            system.build.vm = pkgs.runCommandLocal "nixos-vm" {
               buildInputs = [ pkgs.qemu ];
               toplevel = config.system.build.toplevel;
             } ''
