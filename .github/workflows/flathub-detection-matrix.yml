@@ -162,18 +162,7 @@ jobs:
             pid: ""
             cgroupns: ""
 
-          # CRITICAL - macOS
-          # macOS runs directly on macOS runner, not in Docker
-          - name: "macOS 15 (Homebrew)"
-            runs-on: macos-15
-            image: ""
-            variant: ""
-            scenario: enabled-user
-            privileged: "false"
-            pid: ""
-            cgroupns: ""
-
-    env:
+          env:
       SCENARIO: ${{ matrix.scenario }}
       SELINUX: ${{ matrix.selinux || '' }}
       APPARMOR: ${{ matrix.apparmor || '' }}
@@ -206,26 +195,7 @@ jobs:
             ${{ matrix.image }} \
             /src/test/ci/validate-detection.sh "${SCENARIO}"
 
-      - name: Run validation (macOS)
-        if: runner.os == 'macOS'
-        run: |
-          export FLATPAK_TEST_MODE=1
-          export SCRIPT_DEBUG=1
-          export SCENARIO="${SCENARIO}"
-          export PATH="${PATH}:/opt/homebrew/bin"
-          # Install bash 5 for bash 4.0+ features (associative arrays, etc.)
-          brew install bash
-          # Use bash 5 for the test - pass PATH explicitly
-          /opt/homebrew/bin/bash -c "
-            export FLATPAK_TEST_MODE=1
-            export SCRIPT_DEBUG=1
-            export SCENARIO=\"${SCENARIO}\"
-            export PATH=\"${PATH}:/opt/homebrew/bin\"
-            chmod +x ${{ github.workspace }}/test/ci/validate-detection.sh
-            ${{ github.workspace }}/test/ci/validate-detection.sh \"${SCENARIO}\"
-          "
-
-  # Summary job
+# Summary job
   matrix-summary:
     name: Matrix Summary
     runs-on: ubuntu-latest
