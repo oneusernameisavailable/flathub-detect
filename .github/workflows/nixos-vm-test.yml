@@ -11,10 +11,17 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Install Nix
-        uses: DeterminateSystems/nix-installer-action@v9
+        uses: cachix/install-nix-action@v31
         with:
-          extra-conf: |
+          extra_nix_config: |
             experimental-features = nix-command flakes
+            access-tokens = github.com=${{ secrets.GITHUB_TOKEN }}
+
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666"' | sudo tee /etc/udev/rules.d/99-kvm.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
 
       - name: Build NixOS VM
         run: |
@@ -48,7 +55,7 @@ jobs:
             echo 'STATE:' \$FLATHUB_STATE
             echo 'SCOPE:' \$FLATHUB_SCOPE
             echo 'ENABLED:' \$FLATHUB_ENABLED
-            [[ \"\$FLATHUB_STATE\" == \"enabled\" ]] && [[ \"\$FLATHUB_SCOPE\" == *extra* ]] && echo 'PASS' || (echo 'FAIL' && exit 1)
+            [[ "\$FLATHUB_STATE" == "enabled" ]] && [[ "\$FLATHUB_SCOPE" == *extra* ]] && echo 'PASS' || (echo 'FAIL' && exit 1)
           "
           
           # Cleanup
