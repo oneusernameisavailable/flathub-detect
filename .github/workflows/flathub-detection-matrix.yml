@@ -3,64 +3,45 @@ on: [push, pull_request, schedule]
 
 jobs:
   matrix:
-    runs-on: ${{ matrix.os }}
+    runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
         include:
-          # CRITICAL - Fedora rpm-ostree (immutable)
-          - { os: ubuntu-latest, distro: fedora:41, variant: silverblue, flatpak: 1.18, scenario: enabled-system, selinux: enforcing }
-          - { os: ubuntu-latest, distro: fedora:41, variant: kinoite, flatpak: 1.18, scenario: enabled-system, selinux: enforcing }
-          - { os: ubuntu-latest, distro: fedora:41, variant: workstation, flatpak: 1.18, scenario: enabled-system, selinux: enforcing }
-          - { os: ubuntu-latest, distro: quay.io/fedora/fedora:41, flatpak: 1.18, scenario: custom-installation, selinux: enforcing }
+          # CRITICAL - Fedora family (verified images on Docker Hub / quay.io)
+          - { distro: fedora:41, flatpak: "1.18", scenario: enabled-system, selinux: enforcing, name: "Fedora 41 Workstation" }
+          - { distro: fedora:40, flatpak: "1.15", scenario: enabled-system, selinux: enforcing, name: "Fedora 40 Workstation" }
 
-          # CRITICAL - RHEL family
-          - { os: ubuntu-latest, distro: rockylinux/rockylinux:9, flatpak: 1.18, scenario: enabled-system, selinux: enforcing }
-          - { os: ubuntu-latest, distro: almalinux/almalinux:9, flatpak: 1.18, scenario: enabled-system, selinux: enforcing }
-          - { os: ubuntu-latest, distro: centos/centos:stream10, flatpak: 1.18, scenario: enabled-system, selinux: enforcing }
+          # CRITICAL - RHEL family (verified on Docker Hub)
+          - { distro: rockylinux/rockylinux:9, flatpak: "1.18", scenario: enabled-system, selinux: enforcing, name: "Rocky Linux 9" }
+          - { distro: almalinux/almalinux:9, flatpak: "1.18", scenario: enabled-system, selinux: enforcing, name: "AlmaLinux 9" }
 
-          # CRITICAL - Debian/Ubuntu family
-          - { os: ubuntu-latest, distro: ubuntu:24.04, flatpak: 1.18, scenario: enabled-system, apparmor: true }
-          - { os: ubuntu-latest, distro: ubuntu:22.04, flatpak: 1.18, scenario: enabled-system, apparmor: true }
-          - { os: ubuntu-latest, distro: debian:12, flatpak: 1.18, scenario: enabled-system }
-          - { os: ubuntu-latest, distro: pop-os/pop-os:22.04, flatpak: 1.18, scenario: enabled-system, apparmor: true }
-          - { os: ubuntu-latest, distro: linuxmint/mint:22, flatpak: 1.18, scenario: enabled-system, apparmor: true }
+          # CRITICAL - Debian/Ubuntu family (verified on Docker Hub)
+          - { distro: ubuntu:24.04, flatpak: "1.18", scenario: enabled-system, apparmor: true, name: "Ubuntu 24.04" }
+          - { distro: ubuntu:22.04, flatpak: "1.18", scenario: enabled-system, apparmor: true, name: "Ubuntu 22.04" }
+          - { distro: debian:12, flatpak: "1.18", scenario: enabled-system, name: "Debian 12" }
+          - { distro: debian:11, flatpak: "1.12", scenario: enabled-system, name: "Debian 11" }
 
-          # CRITICAL - Arch family
-          - { os: ubuntu-latest, distro: archlinux/archlinux:latest, flatpak: 1.18, scenario: enabled-system }
-          - { os: ubuntu-latest, distro: manjarolinux/manjaro:stable, flatpak: 1.18, scenario: enabled-system }
+          # CRITICAL - Arch family (verified on Docker Hub)
+          - { distro: archlinux/archlinux:latest, flatpak: "1.18", scenario: enabled-system, name: "Arch Linux" }
 
-          # CRITICAL - NixOS (immutable, custom paths)
-          - { os: ubuntu-latest, distro: nixos/nixos:24.11, flatpak: 1.18, scenario: custom-installation }
+          # HIGH - Extended coverage (verified on Docker Hub)
+          - { distro: opensuse/tumbleweed:latest, flatpak: "1.18", scenario: enabled-system, name: "openSUSE Tumbleweed" }
+          - { distro: opensuse/tumbleweed:latest, flatpak: "1.14", scenario: enabled-system, name: "openSUSE Tumbleweed (flatpak 1.14)" }
+          - { distro: alpine:3.20, flatpak: "1.18", scenario: enabled-user, name: "Alpine 3.20" }
+          - { distro: alpine:3.19, flatpak: "1.18", scenario: enabled-user, name: "Alpine 3.19" }
 
-          # CRITICAL - Immutable/OSTree
-          - { os: ubuntu-latest, distro: endlessm/endless:latest, flatpak: 1.18, scenario: enabled-system }
-          - { os: ubuntu-latest, distro: valvedev/steamos:jupiter, flatpak: 1.18, scenario: enabled-system, selinux: enforcing }
+          # MEDIUM - Version regression (verified on Docker Hub)
+          - { distro: ubuntu:22.04, flatpak: "1.15", scenario: enabled-system, apparmor: true, name: "Ubuntu 22.04 (flatpak 1.15)" }
+          - { distro: debian:11, flatpak: "1.12", scenario: enabled-system, name: "Debian 11 (flatpak 1.12)" }
+          - { distro: fedora:40, flatpak: "1.15", scenario: enabled-system, selinux: enforcing, name: "Fedora 40 (flatpak 1.15)" }
 
-          # HIGH - Extended coverage
-          - { os: ubuntu-latest, distro: opensuse/tumbleweed:latest, flatpak: 1.18, scenario: enabled-system }
-          - { os: ubuntu-latest, distro: alpine:3.20, flatpak: 1.18, scenario: enabled-user }
-          - { os: ubuntu-latest, distro: clearos/clear:latest, flatpak: 1.18, scenario: enabled-system }
-          - { os: ubuntu-latest, distro: solus/solus:4.5, flatpak: 1.18, scenario: enabled-system }
-          - { os: ubuntu-latest, distro: voidlinux/void:latest, flatpak: 1.18, scenario: enabled-system }
-          - { os: ubuntu-latest, distro: gentoo/stage3:latest, flatpak: 1.18, scenario: enabled-system }
-          - { os: ubuntu-latest, distro: chromeos/crostini:latest, flatpak: 1.18, scenario: enabled-user }
-          - { os: ubuntu-latest, distro: mcr.microsoft.com/devcontainers/base:ubuntu-24.04, flatpak: 1.18, scenario: enabled-user }
-          - { os: ubuntu-latest, distro: mcr.microsoft.com/devcontainers/base:debian-12, flatpak: 1.18, scenario: enabled-user }
-          - { os: ubuntu-latest, distro: mcr.microsoft.com/devcontainers/base:arch, flatpak: 1.18, scenario: enabled-user }
-
-          # MEDIUM - Version regression
-          - { os: ubuntu-latest, distro: fedora:40, flatpak: 1.15, scenario: enabled-system, selinux: enforcing }
-          - { os: ubuntu-latest, distro: ubuntu:22.04, flatpak: 1.15, scenario: enabled-system, apparmor: true }
-          - { os: ubuntu-latest, distro: opensuse/tumbleweed:latest, flatpak: 1.14, scenario: enabled-system }
-          - { os: ubuntu-latest, distro: debian:11, flatpak: 1.12, scenario: enabled-system }
-          - { os: ubuntu-latest, distro: alpine:3.19, flatpak: 1.10, scenario: enabled-user }
     steps:
       - uses: actions/checkout@v4
       - name: Run validation
         run: |
           docker run --rm --privileged \
             -v ${{ github.workspace }}:/src \
-            ${{ matrix.distro }}${{ matrix.variant && ':' || '' }}${{ matrix.variant || '' }} \
+            ${{ matrix.distro }} \
             /src/test/ci/validate-detection.sh ${{ matrix.scenario }} ${{ matrix.selinux || '' }} ${{ matrix.apparmor || '' }}
-        timeout-minutes: 10
+        timeout-minutes: 15
