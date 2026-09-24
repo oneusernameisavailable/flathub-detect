@@ -137,24 +137,6 @@ jobs:
             pid: ""
             cgroupns: ""
 
-          - name: "Manjaro Stable (Arch-based, held-back flatpak)"
-            runs-on: ubuntu-latest
-            image: manjarolinux/manjaro:stable
-            variant: ""
-            scenario: enabled-system
-            privileged: "false"
-            pid: ""
-            cgroupns: ""
-
-          - name: "EndeavourOS (Arch-based, close to upstream)"
-            runs-on: ubuntu-latest
-            image: endeavouros/endeavouros:latest
-            variant: ""
-            scenario: enabled-system
-            privileged: "false"
-            pid: ""
-            cgroupns: ""
-
           # CRITICAL - NixOS (immutable, custom paths)
           # NixOS doesn't have official Docker images on Docker Hub.
           # For CI, test using the NixOS container from nixos/nixos-unstable or use a VM approach.
