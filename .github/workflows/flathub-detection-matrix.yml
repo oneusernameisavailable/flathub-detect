@@ -192,6 +192,8 @@ jobs:
       - name: Run validation (Linux)
         if: runner.os == 'Linux'
         run: |
+          export FLATPAK_TEST_MODE=1
+          export SCRIPT_DEBUG=1
           docker run --rm \
             ${PRIVILEGED:+--privileged} \
             ${PID_MODE:+--pid=${PID_MODE}} \
@@ -208,6 +210,7 @@ jobs:
         if: runner.os == 'macOS'
         run: |
           export FLATPAK_TEST_MODE=1
+          export SCRIPT_DEBUG=1
           export SCENARIO="${SCENARIO}"
           chmod +x ${{ github.workspace }}/test/ci/validate-detection.sh
           ${{ github.workspace }}/test/ci/validate-detection.sh "${SCENARIO}"
