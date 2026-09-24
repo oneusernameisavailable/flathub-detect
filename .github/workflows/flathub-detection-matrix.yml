@@ -23,7 +23,7 @@ on:
         default: critical
 
 env:
-  LIBRARY_PATH: /src/fx-flathub-detect.sh
+  LIBRARY_PATH: ${{ github.workspace }}/fx-flathub-detect.sh
 
 jobs:
   detect-matrix:

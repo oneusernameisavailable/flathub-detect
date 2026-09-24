@@ -336,6 +336,22 @@ case "$SCENARIO" in
         log "PASS: strict-mode-caller"
         ;;
 
+    custom-installation)
+        log "Setting up: Custom installation (NixOS-like) with flathub enabled"
+        FP_BIN="$(mktemp -d)"
+        setup_fake_flatpak "$FP_BIN"
+        export RL_SYSTEM="flathub"
+        export RL_USER=""
+        export FLATPAK_TEST_MODE=1
+        export PATH="$FP_BIN:$PATH"
+
+        if flathub_enabled; then rc=0; else rc=1; fi
+        [[ "$rc" -eq 0 ]] || fail "flathub_enabled should be true"
+        [[ "$FLATHUB_STATE" == "enabled" ]] || fail "FLATHUB_STATE=enabled expected"
+        [[ "$FLATHUB_SCOPE" == "system" ]] || fail "FLATHUB_SCOPE=system expected"
+        log "PASS: custom-installation"
+        ;;
+
     *)
         fail "Unknown scenario: $SCENARIO"
         ;;
