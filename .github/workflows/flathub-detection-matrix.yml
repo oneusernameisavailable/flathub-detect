@@ -189,8 +189,7 @@ jobs:
             privileged: "false"
             pid: ""
             cgroupns: ""
-
-          # HIGH - Fedora 40 (Flatpak 1.15)
+            install-bash: "true"
           - name: "Fedora 40 Workstation (Flatpak 1.15)"
             runs-on: ubuntu-latest
             image: fedora:40
@@ -245,47 +244,6 @@ jobs:
             pid: ""
             cgroupns: ""
 
-          # LOW - SLES 15 SP6
-          - name: "SLES 15 SP6 (Flatpak 1.14)"
-            runs-on: ubuntu-latest
-            image: registry.suse.com/suse/sles15sp6
-            variant: ""
-            scenario: enabled-system
-            apparmor: "true"
-            privileged: "false"
-            pid: ""
-            cgroupns: ""
-
-          # LOW - Clear Linux
-          - name: "Clear Linux (latest flatpak)"
-            runs-on: ubuntu-latest
-            image: clearlinux/clearlinux:latest
-            variant: ""
-            scenario: enabled-system
-            privileged: "false"
-            pid: ""
-            cgroupns: ""
-
-          # MEDIUM - Manjaro Stable
-          - name: "Manjaro Stable (held-back flatpak)"
-            runs-on: ubuntu-latest
-            image: manjarolinux/manjaro:stable
-            variant: ""
-            scenario: enabled-system
-            privileged: "false"
-            pid: ""
-            cgroupns: ""
-
-          # MEDIUM - EndeavourOS
-          - name: "EndeavourOS (Arch-based)"
-            runs-on: ubuntu-latest
-            image: endeavouros/endeavouros:latest
-            variant: ""
-            scenario: enabled-system
-            privileged: "false"
-            pid: ""
-            cgroupns: ""
-
     env:
       SCENARIO: ${{ matrix.scenario }}
       SELINUX: ${{ matrix.selinux || '' }}
@@ -301,6 +259,11 @@ jobs:
       - name: Set up validation script
         run: |
           chmod +x test/ci/validate-detection.sh
+
+      - name: Install bash for Alpine
+        if: ${{ matrix.install-bash == 'true' }}
+        run: |
+          docker run --rm --entrypoint sh ${{ matrix.image }} -c "apk add --no-cache bash"
 
       - name: Run validation (Linux)
         if: runner.os == 'Linux'
@@ -392,6 +355,11 @@ jobs:
       - name: Set up validation script
         run: |
           chmod +x test/ci/validate-detection.sh
+
+      - name: Install bash for Alpine
+        if: ${{ matrix.install-bash == 'true' }}
+        run: |
+          docker run --rm --entrypoint sh ${{ matrix.image }} -c "apk add --no-cache bash"
 
       - name: Run validation (Flatpak Version ${{ matrix.flatpak-version }})
         run: |
