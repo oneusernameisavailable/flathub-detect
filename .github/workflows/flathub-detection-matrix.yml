@@ -162,7 +162,7 @@ jobs:
             pid: ""
             cgroupns: ""
 
-          # HIGH - Alpine (musl libc, no glibc) - use ash instead of bash
+          # HIGH - Alpine (musl libc, no glibc) - install bash first
           - name: "Alpine 3.19 (musl libc)"
             runs-on: ubuntu-latest
             image: alpine:3.19
@@ -171,7 +171,7 @@ jobs:
             privileged: "false"
             pid: ""
             cgroupns: ""
-            use-ash: "true"
+            install-bash: "true"
           - name: "Fedora 40 Workstation (Flatpak 1.15)"
             runs-on: ubuntu-latest
             image: fedora:40
@@ -241,6 +241,11 @@ jobs:
       - name: Set up validation script
         run: |
           chmod +x test/ci/validate-detection.sh
+
+      - name: Install bash for Alpine
+        if: ${{ matrix.install-bash == 'true' }}
+        run: |
+          docker run --rm --entrypoint sh ${{ matrix.image }} -c "apk add --no-cache bash"
 
       - name: Run validation (Linux)
         if: runner.os == 'Linux'
