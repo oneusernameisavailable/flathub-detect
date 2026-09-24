@@ -260,7 +260,14 @@ _flathub_validate_binary() {
             # C4: SHA256 escape hatch only allowed in test mode (FLATPAK_TEST_MODE=1)
             if [ "${FLATPAK_TEST_MODE:-0}" = "1" ] && [ -n "${_FLATHUB_FLATPAK_SHA256:-}" ]; then
                 local sum
-                sum="$(sha256sum "$bin" 2>/dev/null | cut -d' ' -f1)"
+                # Portable SHA256: sha256sum on Linux, shasum -a 256 on macOS
+                if command -v sha256sum >/dev/null 2>&1; then
+                    sum="$(sha256sum "$bin" 2>/dev/null | cut -d' ' -f1)"
+                elif command -v shasum >/dev/null 2>&1; then
+                    sum="$(shasum -a 256 "$bin" 2>/dev/null | cut -d' ' -f1)"
+                else
+                    return 1
+                fi
                 [ "$sum" = "$_FLATHUB_FLATPAK_SHA256" ] || return 1
             else
                 return 1
