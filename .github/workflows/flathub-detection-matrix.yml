@@ -137,6 +137,24 @@ jobs:
             pid: ""
             cgroupns: ""
 
+          - name: "Manjaro Stable (Arch-based, held-back flatpak)"
+            runs-on: ubuntu-latest
+            image: manjarolinux/manjaro:stable
+            variant: ""
+            scenario: enabled-system
+            privileged: "false"
+            pid: ""
+            cgroupns: ""
+
+          - name: "EndeavourOS (Arch-based, close to upstream)"
+            runs-on: ubuntu-latest
+            image: endeavouros/endeavouros:latest
+            variant: ""
+            scenario: enabled-system
+            privileged: "false"
+            pid: ""
+            cgroupns: ""
+
           # CRITICAL - NixOS (immutable, custom paths)
           # NixOS doesn't have official Docker images on Docker Hub.
           # For CI, test using the NixOS container from nixos/nixos-unstable or use a VM approach.
@@ -156,6 +174,112 @@ jobs:
           - name: "Endless OS (OSTree + Flatpak) - simulated"
             runs-on: ubuntu-latest
             image: ubuntu:24.04
+            variant: ""
+            scenario: enabled-system
+            privileged: "false"
+            pid: ""
+            cgroupns: ""
+
+          # HIGH - Alpine (musl libc, no glibc)
+          - name: "Alpine 3.19 (musl libc)"
+            runs-on: ubuntu-latest
+            image: alpine:3.19
+            variant: ""
+            scenario: enabled-user
+            privileged: "false"
+            pid: ""
+            cgroupns: ""
+
+          # HIGH - Fedora 40 (Flatpak 1.15)
+          - name: "Fedora 40 Workstation (Flatpak 1.15)"
+            runs-on: ubuntu-latest
+            image: fedora:40
+            variant: ""
+            scenario: enabled-system
+            selinux: enforcing
+            privileged: "false"
+            pid: ""
+            cgroupns: ""
+
+          # MEDIUM - Ubuntu 20.04 LTS (Flatpak 1.12)
+          - name: "Ubuntu 20.04 LTS (Flatpak 1.12)"
+            runs-on: ubuntu-latest
+            image: ubuntu:20.04
+            variant: ""
+            scenario: enabled-system
+            apparmor: "true"
+            privileged: "false"
+            pid: ""
+            cgroupns: ""
+
+          # MEDIUM - Debian 11 LTS (Flatpak 1.12)
+          - name: "Debian 11 LTS (Flatpak 1.12)"
+            runs-on: ubuntu-latest
+            image: debian:11
+            variant: ""
+            scenario: enabled-system
+            apparmor: "false"
+            privileged: "false"
+            pid: ""
+            cgroupns: ""
+
+          # MEDIUM - openSUSE Tumbleweed
+          - name: "openSUSE Tumbleweed (rolling)"
+            runs-on: ubuntu-latest
+            image: opensuse/tumbleweed:latest
+            variant: ""
+            scenario: enabled-system
+            apparmor: "false"
+            privileged: "false"
+            pid: ""
+            cgroupns: ""
+
+          # MEDIUM - Rocky Linux 8 (Flatpak 1.10)
+          - name: "Rocky Linux 8 (Flatpak 1.10)"
+            runs-on: ubuntu-latest
+            image: rockylinux/rockylinux:8
+            variant: ""
+            scenario: enabled-system
+            selinux: enforcing
+            privileged: "false"
+            pid: ""
+            cgroupns: ""
+
+          # LOW - SLES 15 SP6
+          - name: "SLES 15 SP6 (Flatpak 1.14)"
+            runs-on: ubuntu-latest
+            image: registry.suse.com/suse/sles15sp6
+            variant: ""
+            scenario: enabled-system
+            apparmor: "true"
+            privileged: "false"
+            pid: ""
+            cgroupns: ""
+
+          # LOW - Clear Linux
+          - name: "Clear Linux (latest flatpak)"
+            runs-on: ubuntu-latest
+            image: clearlinux/clearlinux:latest
+            variant: ""
+            scenario: enabled-system
+            privileged: "false"
+            pid: ""
+            cgroupns: ""
+
+          # MEDIUM - Manjaro Stable
+          - name: "Manjaro Stable (held-back flatpak)"
+            runs-on: ubuntu-latest
+            image: manjarolinux/manjaro:stable
+            variant: ""
+            scenario: enabled-system
+            privileged: "false"
+            pid: ""
+            cgroupns: ""
+
+          # MEDIUM - EndeavourOS
+          - name: "EndeavourOS (Arch-based)"
+            runs-on: ubuntu-latest
+            image: endeavouros/endeavouros:latest
             variant: ""
             scenario: enabled-system
             privileged: "false"
@@ -210,3 +334,77 @@ jobs:
           echo "|----------|--------|" >> $GITHUB_STEP_SUMMARY
           # Results would be collected from job outputs
           echo "Results available in job logs above." >> $GITHUB_STEP_SUMMARY
+
+  # Flatpak Version Matrix - Test different Flatpak versions
+  version-matrix:
+    name: Flatpak Version ${{ matrix.flatpak-version }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # Flatpak 1.10 - Debian 11 LTS
+          - flatpak-version: "1.10"
+            image: debian:11
+            variant: ""
+            scenario: enabled-system
+            apparmor: "false"
+            selinux: ""
+            privileged: "false"
+          # Flatpak 1.12 - Ubuntu 20.04 LTS
+          - flatpak-version: "1.12"
+            image: ubuntu:20.04
+            variant: ""
+            scenario: enabled-system
+            apparmor: "true"
+            selinux: ""
+            privileged: "false"
+          # Flatpak 1.14 - Fedora 38
+          - flatpak-version: "1.14"
+            image: fedora:38
+            variant: ""
+            scenario: enabled-system
+            apparmor: ""
+            selinux: enforcing
+            privileged: "false"
+          # Flatpak 1.15 - Fedora 40
+          - flatpak-version: "1.15"
+            image: fedora:40
+            variant: ""
+            scenario: enabled-system
+            apparmor: ""
+            selinux: enforcing
+            privileged: "false"
+          # Flatpak 1.18 - Ubuntu 24.04 (current)
+          - flatpak-version: "1.18"
+            image: ubuntu:24.04
+            variant: ""
+            scenario: enabled-system
+            apparmor: "true"
+            selinux: ""
+            privileged: "false"
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up validation script
+        run: |
+          chmod +x test/ci/validate-detection.sh
+
+      - name: Run validation (Flatpak Version ${{ matrix.flatpak-version }})
+        run: |
+          export FLATPAK_TEST_MODE=1
+          export SCRIPT_DEBUG=1
+          docker run --rm \
+            -v "${{ github.workspace }}:/src:ro" \
+            -e SCENARIO="${SCENARIO}" \
+            -e FLATPAK_TEST_MODE=1 \
+            ${{ matrix.image }} \
+            /src/test/ci/validate-detection.sh "${SCENARIO}"
+        env:
+          SCENARIO: ${{ matrix.scenario }}
+          SELINUX: ${{ matrix.selinux || '' }}
+          APPARMOR: ${{ matrix.apparmor || '' }}
+          FLATPAK_TEST_MODE: 1
