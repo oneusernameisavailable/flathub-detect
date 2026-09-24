@@ -263,7 +263,7 @@ _flathub_validate_binary() {
                 # This avoids SHA256 computation issues on platforms without sha256sum/shasum/openssl
                 if [ "${_FLATHUB_PINNED_FLATPAK:-}" = "$bin" ]; then
                     # Trust the pinned flatpak in test mode
-                    _flathub_debug "test mode: trusting pinned flatpak at $bin"
+                    echo "[DEBUG] _flathub_validate_binary: trusting pinned flatpak at $bin" >&2
                     :
                 else
                     # Portable SHA256: try multiple commands in order
@@ -275,10 +275,10 @@ _flathub_validate_binary() {
                     elif command -v openssl >/dev/null 2>&1; then
                         sum="$(openssl dgst -sha256 "$bin" 2>/dev/null | sed 's/.*= //')"
                     else
-                        _flathub_debug "test mode: no sha256sum/shasum/openssl available for SHA256 verification"
+                        echo "[DEBUG] _flathub_validate_binary: no sha256sum/shasum/openssl available for SHA256 verification" >&2
                         return 1
                     fi
-                    _flathub_debug "test mode: computed SHA256=$sum, expected=$_FLATHUB_FLATPAK_SHA256"
+                    echo "[DEBUG] _flathub_validate_binary: computed SHA256=$sum, expected=$_FLATHUB_FLATPAK_SHA256" >&2
                     [ -n "$sum" ] && [ "$sum" = "$_FLATHUB_FLATPAK_SHA256" ] || return 1
                 fi
             else
