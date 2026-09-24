@@ -33,10 +33,11 @@
               };
             };
 
-            # Build VM image - use a different approach to avoid config scope issues
-            system.build.vm = pkgs.runCommandLocal "nixos-vm" {
+            # Build VM image - pass toplevel as explicit argument
+            system.build.vm = let
+              toplevel = config.system.build.toplevel;
+            in pkgs.runCommandLocal "nixos-vm" {
               buildInputs = [ pkgs.qemu ];
-              # Pass the toplevel path as an argument
               toplevel = config.system.build.toplevel;
             } ''
               mkdir -p $out
