@@ -63,6 +63,7 @@ EOF
     chmod +x "$bin_dir/flatpak"
     export _FLATHUB_FLATPAK_SHA256="$(sha256sum "$bin_dir/flatpak" | cut -d' ' -f1)"
     export FLATPAK_TEST_MODE=1
+    export _FLATHUB_PINNED_FLATPAK="$bin_dir/flatpak"
     export PATH="$bin_dir:$PATH"
 }
 
@@ -344,6 +345,13 @@ case "$SCENARIO" in
         export RL_USER=""
         export FLATPAK_TEST_MODE=1
         export PATH="$FP_BIN:$PATH"
+        # Create mock NixOS config paths
+        mkdir -p "$FP_BIN/nix/store/abc123-flatpak-1.15.8/etc/flatpak"
+        write_config "$FP_BIN/nix/store/abc123-flatpak-1.15.8/etc/flatpak/config" '    [remote "flathub"]' 'url=https://dl.flathub.org/repo/' 'gpg-verify=true'
+        export _FLATHUB_SYSTEM_CONFIG="$FP_BIN/nix/store/abc123-flatpak-1.15.8/etc/flatpak/config"
+        export _FLATHUB_USER_CONFIG="$FP_BIN/none-user"
+        export _FLATHUB_ALLOW_TEST_OVERRIDES=1
+        export _FLATHUB_TEST_ALLOW_CONFIG_DIRS="$FP_BIN"
 
         if flathub_enabled; then rc=0; else rc=1; fi
         [[ "$rc" -eq 0 ]] || fail "flathub_enabled should be true"
