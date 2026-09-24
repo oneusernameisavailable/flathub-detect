@@ -10,7 +10,6 @@
       pkgs = import nixpkgs { config = { allowUnfree = true; }; };
     in
     {
-      # NixOS VM configuration
       nixosConfigurations.flathub-test-vm = {
         system = "x86_64-linux";
         modules = [
@@ -33,8 +32,7 @@
               };
             };
 
-            # Build VM image - define toplevel inside module body
-            system.build.vm = { config, pkgs, ... }@moduleArgs: let
+            system.build.vm = { config, pkgs, ... }: let
               toplevel = config.system.build.toplevel;
             in pkgs.runCommandLocal "nixos-vm" {
               buildInputs = [ pkgs.qemu ];
