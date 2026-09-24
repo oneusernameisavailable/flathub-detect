@@ -180,7 +180,7 @@ jobs:
             pid: ""
             cgroupns: ""
 
-          # HIGH - Alpine (musl libc, no glibc)
+          # HIGH - Alpine (musl libc, no glibc) - use ash instead of bash
           - name: "Alpine 3.19 (musl libc)"
             runs-on: ubuntu-latest
             image: alpine:3.19
@@ -189,7 +189,7 @@ jobs:
             privileged: "false"
             pid: ""
             cgroupns: ""
-            install-bash: "true"
+            use-ash: "true"
           - name: "Fedora 40 Workstation (Flatpak 1.15)"
             runs-on: ubuntu-latest
             image: fedora:40
@@ -260,27 +260,36 @@ jobs:
         run: |
           chmod +x test/ci/validate-detection.sh
 
-      - name: Install bash for Alpine
-        if: ${{ matrix.install-bash == 'true' }}
-        run: |
-          docker run --rm --entrypoint sh ${{ matrix.image }} -c "apk add --no-cache bash"
-
       - name: Run validation (Linux)
         if: runner.os == 'Linux'
         run: |
           export FLATPAK_TEST_MODE=1
           export SCRIPT_DEBUG=1
-          docker run --rm \
-            ${PRIVILEGED:+--privileged} \
-            ${PID_MODE:+--pid=${PID_MODE}} \
-            ${CGROUPNS:+--cgroupns=${CGROUPNS}} \
-            -v "${{ github.workspace }}:/src:ro" \
-            -e SCENARIO="${SCENARIO}" \
-            -e SELINUX="${SELINUX}" \
-            -e APPARMOR="${APPARMOR}" \
-            -e FLATPAK_TEST_MODE=1 \
-            ${{ matrix.image }} \
-            /src/test/ci/validate-detection.sh "${SCENARIO}"
+          if [ "${{ matrix.use-ash }}" = "true" ]; then
+            docker run --rm \
+              ${PRIVILEGED:+--privileged} \
+              ${PID_MODE:+--pid=${PID_MODE}} \
+              ${CGROUPNS:+--cgroupns=${CGROUPNS}} \
+              -v "${{ github.workspace }}:/src:ro" \
+              -e SCENARIO="${SCENARIO}" \
+              -e SELINUX="${SELINUX}" \
+              -e APPARMOR="${APPARMOR}" \
+              -e FLATPAK_TEST_MODE=1 \
+              ${{ matrix.image }} \
+              ash /src/test/ci/validate-detection.sh "${SCENARIO}"
+          else
+            docker run --rm \
+              ${PRIVILEGED:+--privileged} \
+              ${PID_MODE:+--pid=${PID_MODE}} \
+              ${CGROUPNS:+--cgroupns=${CGROUPNS}} \
+              -v "${{ github.workspace }}:/src:ro" \
+              -e SCENARIO="${SCENARIO}" \
+              -e SELINUX="${SELINUX}" \
+              -e APPARMOR="${APPARMOR}" \
+              -e FLATPAK_TEST_MODE=1 \
+              ${{ matrix.image }} \
+              /src/test/ci/validate-detection.sh "${SCENARIO}"
+          fi
 
 # Summary job
   matrix-summary:
