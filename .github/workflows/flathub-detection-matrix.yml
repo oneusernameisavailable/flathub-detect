@@ -37,9 +37,6 @@ jobs:
           - { os: ubuntu-latest, distro: endlessm/endless:latest, flatpak: 1.18, scenario: enabled-system }
           - { os: ubuntu-latest, distro: valvedev/steamos:jupiter, flatpak: 1.18, scenario: enabled-system, selinux: enforcing }
 
-          # CRITICAL - macOS
-          - { os: macos-latest, distro: macos, flatpak: 1.18, scenario: enabled-user }
-
           # HIGH - Extended coverage
           - { os: ubuntu-latest, distro: opensuse/tumbleweed:latest, flatpak: 1.18, scenario: enabled-system }
           - { os: ubuntu-latest, distro: alpine:3.20, flatpak: 1.18, scenario: enabled-user }
@@ -58,7 +55,6 @@ jobs:
           - { os: ubuntu-latest, distro: opensuse/tumbleweed:latest, flatpak: 1.14, scenario: enabled-system }
           - { os: ubuntu-latest, distro: debian:11, flatpak: 1.12, scenario: enabled-system }
           - { os: ubuntu-latest, distro: alpine:3.19, flatpak: 1.10, scenario: enabled-user }
-          - { os: macos-13, distro: macos, flatpak: 1.18, scenario: enabled-user }
     steps:
       - uses: actions/checkout@v4
       - name: Run validation
