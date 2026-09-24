@@ -61,7 +61,12 @@ fi
 for n in $list; do printf "%s\n" "$n"; done
 EOF
     chmod +x "$bin_dir/flatpak"
-    export _FLATHUB_FLATPAK_SHA256="$(sha256sum "$bin_dir/flatpak" | cut -d' ' -f1)"
+    # Portable SHA256 computation (sha256sum on Linux, shasum -a 256 on macOS)
+    if command -v sha256sum >/dev/null 2>&1; then
+        export _FLATHUB_FLATPAK_SHA256="$(sha256sum "$bin_dir/flatpak" | cut -d' ' -f1)"
+    else
+        export _FLATHUB_FLATPAK_SHA256="$(shasum -a 256 "$bin_dir/flatpak" | cut -d' ' -f1)"
+    fi
     export FLATPAK_TEST_MODE=1
     export _FLATHUB_PINNED_FLATPAK="$bin_dir/flatpak"
     export PATH="$bin_dir:$PATH"
