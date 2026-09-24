@@ -21,10 +21,10 @@
         system = "x86_64-linux";
         modules = [
           { config, pkgs, ... }: {
-            imports = [ <nixpkgs/nixos/modules/virtualisation/qemu-vm.nix> ];
-            
-            # Use the test VM config
-            imports = [ ./nixos-test-vm.nix ];
+            imports = [
+              <nixpkgs/nixos/modules/virtualisation/qemu-vm.nix>
+              ./nixos-test-vm.nix
+            ];
             
             # VM-specific settings
             virtualisation = {
