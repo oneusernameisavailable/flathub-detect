@@ -33,10 +33,12 @@
               };
             };
 
-            # Build VM image - define toplevel inside the module body where config is available
-            system.build.vm = pkgs.runCommandLocal "nixos-vm" {
-              buildInputs = [ pkgs.qemu ];
+            # Build VM image - define toplevel inside module body where config is available
+            system.build.vm = let
               toplevel = config.system.build.toplevel;
+            in pkgs.runCommandLocal "nixos-vm" {
+              buildInputs = [ pkgs.qemu ];
+              toplevel = toplevel;
             } ''
               mkdir -p $out
               ${toplevel}/bin/run-nixos-vm -m 1024 -c 2 -snapshot -nographic > $out/run-vm.sh
