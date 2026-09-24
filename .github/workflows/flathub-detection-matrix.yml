@@ -162,7 +162,7 @@ jobs:
             pid: ""
             cgroupns: ""
 
-          env:
+    env:
       SCENARIO: ${{ matrix.scenario }}
       SELINUX: ${{ matrix.selinux || '' }}
       APPARMOR: ${{ matrix.apparmor || '' }}
