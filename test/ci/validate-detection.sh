@@ -31,7 +31,7 @@ ensure_flatpak() {
     elif command -v pacman >/dev/null 2>&1; then
         pacman -Sy --noconfirm flatpak
     elif command -v apk >/dev/null 2>&1; then
-        apk add flatpak
+        apk add bash flatpak
     elif command -v zypper >/dev/null 2>&1; then
         zypper install -y flatpak
     else
