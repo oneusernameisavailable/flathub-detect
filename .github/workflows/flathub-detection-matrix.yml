@@ -162,7 +162,7 @@ jobs:
             pid: ""
             cgroupns: ""
 
-          # HIGH - Alpine (musl libc, no glibc) - install bash first
+          # HIGH - Alpine (musl libc, no glibc) - install bash and run with bash
           - name: "Alpine 3.19 (musl libc)"
             runs-on: ubuntu-latest
             image: alpine:3.19
@@ -252,7 +252,7 @@ jobs:
         run: |
           export FLATPAK_TEST_MODE=1
           export SCRIPT_DEBUG=1
-          if [ "${{ matrix.use-ash }}" = "true" ]; then
+          if [ "${{ matrix.install-bash }}" = "true" ]; then
             docker run --rm \
               ${PRIVILEGED:+--privileged} \
               ${PID_MODE:+--pid=${PID_MODE}} \
@@ -263,7 +263,7 @@ jobs:
               -e APPARMOR="${APPARMOR}" \
               -e FLATPAK_TEST_MODE=1 \
               ${{ matrix.image }} \
-              ash /src/test/ci/validate-detection.sh "${SCENARIO}"
+              ash -c "apk add --no-cache bash && /src/test/ci/validate-detection.sh '${SCENARIO}'"
           else
             docker run --rm \
               ${PRIVILEGED:+--privileged} \
