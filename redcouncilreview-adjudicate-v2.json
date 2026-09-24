@@ -1,0 +1,165 @@
+{
+  "pipeline": "Adjudicate",
+  "timestamp": "2026-09-24T21:45:00Z",
+  "verdict": "REVISE",
+  "confidence": 0.92,
+  "inputHash": "sha256:fx-flathub-detect-sh-fixed-20260924",
+  "inputSummary": "Fixed Flathub repository enabled-detection library review",
+  "trigger": "new-matter",
+  "attackReport": {
+    "agent": "IN-3",
+    "findings": [
+      {
+        "claim": 3,
+        "severity": "CRITICAL",
+        "description": "Scope normalization silently discards custom installation names. _flathub_normalize_scope only recognizes 'system'/'user' tokens; custom installation names (steamdeck, fedora, etc.) from _flathub_probe_installations are dropped → FLATHUB_SCOPE='empty' when Flathub ONLY enabled in custom installation. Violates Claims 3, 17, 20 documented vocabulary.",
+        "evidence": "fx-flathub-detect.sh:218-237, 560, 566",
+        "counterexample": "Steam Deck with flathub only in custom 'steamdeck' installation → flathub_enabled=true but flathub_scope='empty'",
+        "status": "NEW"
+      },
+      {
+        "claim": 15,
+        "severity": "CRITICAL",
+        "description": "State machine returns 'not-configured' on partial query failure instead of 'unknown'. When one scope (system/user) answers authoritatively with no flathub but other scope fails (timeout/permission), lines 780-785 treat failure as 'no flathub' → false negative.",
+        "evidence": "fx-flathub-detect.sh:780-785",
+        "counterexample": "System scope: no flathub (rc=0); User scope: timeout (rc=1) → returns 'not-configured' instead of 'unknown'",
+        "status": "NEW"
+      },
+      {
+        "claim": 6,
+        "severity": "CRITICAL",
+        "description": "Positive-only caching lacks TTL/invalidation. _FLATHUB_DETECTED=1 caches 'enabled' forever; no mechanism to invalidate on flatpak remote-disable, admin changes, or config drift. Stale ENABLED persists in long-lived shells (CI, dev containers, user sessions).",
+        "evidence": "fx-flathub-detect.sh:788, 816-824",
+        "counterexample": "User runs 'flatpak remote-disable flathub' → next shell accessor call still returns cached 'enabled'",
+        "status": "NEW"
+      },
+      {
+        "claim": 7,
+        "severity": "CRITICAL",
+        "description": "False 'binary allowlist' claim in documentation. Claims 7 and 21 assert 'binary allowlist prevents PATH injection' but _flathub_validate_binary has NO allowlist — uses behavioral validation (--version regex + optional SHA-256). Misleads auditors.",
+        "evidence": "fx-flathub-detect.sh:239-278, header lines 85-88, 244",
+        "counterexample": "Security audit checks for allowlist paths; finds only behavioral validation with optional SHA-256 pinning",
+        "status": "NEW"
+      },
+      {
+        "claim": 8,
+        "severity": "CRITICAL",
+        "description": "TOCTOU 'elimination' overclaim. realpath is GNU coreutils (absent on macOS <10.12, *BSD, busybox, distroless containers); mitigation only narrows window, doesn't eliminate. Fallback chain (realpath → readlink -f → original path) adds complexity.",
+        "evidence": "fx-flathub-detect.sh:364-372, 444-458",
+        "counterexample": "macOS 10.11 / Alpine / distroless container → realpath missing, TOCTOU mitigation degrades silently",
+        "status": "NEW"
+      },
+      {
+        "claim": 11,
+        "severity": "HIGH",
+        "description": "Custom installations probe runs out of documented ladder order. _flathub_probe_installations executes unconditionally when binary exists, regardless of whether command path already found flathub. Violates 'first step that yields answer wins' architecture.",
+        "evidence": "fx-flathub-detect.sh:698-700",
+        "counterexample": "Command path finds flathub enabled in 'system' → custom installations probe still runs and may modify FLATHUB_SCOPE",
+        "status": "NEW"
+      },
+      {
+        "claim": 1,
+        "severity": "LOW",
+        "description": "type -P usage for binary lookup is correct defensive practice — avoids aliases/functions, searches PATH only.",
+        "evidence": "fx-flathub-detect.sh:603, 813",
+        "counterexample": "None — this claim holds",
+        "status": "FIXED"
+      },
+      {
+        "claim": 14,
+        "severity": "LOW",
+        "description": "Debug redaction is exceptionally thorough — covers home dirs, runtime dirs, flatpak paths, NixOS, Homebrew (macOS/Linuxbrew), env vars, custom installations.",
+        "evidence": "fx-flathub-detect.sh:148-190",
+        "counterexample": "None — this claim holds",
+        "status": "FIXED"
+      },
+      {
+        "claim": 19,
+        "severity": "LOW",
+        "description": "Double-source guard and direct-execution rejection are solid.",
+        "evidence": "fx-flathub-detect.sh:105-111, 927-930",
+        "counterexample": "None — this claim holds",
+        "status": "FIXED"
+      },
+      {
+        "claim": 23,
+        "severity": "LOW",
+        "description": "Source guard subshell pattern (return 0 2>/dev/null) || exit 0 handles bash -c/eval contexts correctly.",
+        "evidence": "fx-flathub-detect.sh:105-111",
+        "counterexample": "None — this claim holds",
+        "status": "FIXED"
+      }
+    ],
+    "steelman": [
+      "TOCTOU mitigation via dual validation (original path + canonical realpath) with fd-based atomic read is reference-grade for shell libraries",
+      "type -P for flatpak binary lookup is correct defensive practice, avoids alias/function resolution",
+      "Cache integrity verification with SHA-256 content hashes detects external state drift on binary and configs",
+      "Debug redaction is exceptionally thorough across platforms (home, nix store, homebrew, custom installations)",
+      "Double-source guard and direct-execution rejection are solid",
+      "Source guard subshell pattern handles bash -c/eval contexts correctly",
+      "Config parser correctly handles case-insensitive enabled=false values and fails safe to disabled",
+      "All globals always written, safe for set -u callers"
+    ],
+    "counterArgument": [
+      "Critical: Scope normalization silently drops custom installations — FLATHUB_SCOPE='empty' when Flathub ONLY in custom install (Steam Deck, Silverblue)",
+      "Critical: State machine treats query failure as 'no flathub' — returns 'not-configured' instead of 'unknown' on partial scope failure",
+      "Critical: Positive-only cache has no TTL/invalidation — stale ENABLED in long-lived shells after flatpak remote-disable",
+      "Critical: False 'binary allowlist' claim — no allowlist exists, only behavioral validation; misleads auditors",
+      "Critical: TOCTOU 'eliminated portably' but realpath missing on macOS <10.12, *BSD, busybox; narrows window only",
+      "Custom installations probe runs unconditionally, violating documented ladder order",
+      "Detection ladder conflates orthogonal strategies (binary presence, CLI output, config parsing, custom paths)"
+    ]
+  },
+  "councilVerdict": {
+    "agent": "Council-2",
+    "votes": {
+      "A": 1,
+      "B": 1,
+      "C": 1,
+      "D": 1,
+      "E": 1
+    },
+    "rationale": {
+      "A": "Critical functional defects in scope normalization (discards custom installations) and state machine (treats failures as 'not-configured') produce false negatives that undermine security posture. Positive-only caching without TTL creates stale-state risk in long-lived environments. Security claims around allowlist and TOCTOU elimination are overstated.",
+      "B": "The library has strong defensive practices (type -P, SHA-256 cache integrity, debug redaction) but six convergent critical weaknesses undermine correctness: custom installations silently dropped in scope normalization, state machine treating partial failure as 'not-configured', detection ladder order violation, false allowlist claims misleading auditors, TOCTOU portability overclaim, and positive-only caching without invalidation. These are architectural flaws requiring fixes, not cosmetic issues.",
+      "C": "The critical issues around silent custom installation drops (claim 3/17/20), false 'not-configured' on partial query failure (claim 15), and unbounded positive caching without invalidation create silent data corruption in production. These are not theoretical — they will cause flathub detection to return wrong answers in multi-installation environments (Steam Deck, Fedora Silverblue, custom Flatpak setups) and long-running CI/devcontainer sessions.",
+      "D": "Six convergent critical weaknesses violate core specification claims: custom installations are silently discarded (Claim 3/17/20), state machine misclassifies query failures as 'not-configured' (Claim 15), ladder order is violated by unconditional custom probe (Claim 7/21), binary allowlist claim is false (Claim 7/21), TOCTOU elimination overclaims portability (Claim 8), and positive-only caching lacks invalidation (Claim 11). These are not implementation bugs but specification contract violations.",
+      "E": "Six convergent critical findings violate core security claims and functional correctness. Scope normalization silently dropping custom installations (finding 1) and false 'not-configured' on partial failure (finding 2) produce false negatives that defeat the library's purpose. False allowlist claims (finding 4) and TOCTOU overstatement (finding 5) are material misrepresentations for audit trails. Positive-only caching without TTL (finding 6) causes compliance drift in long-lived environments."
+    },
+    "verdict": "REVISE",
+    "confidence": 0.92
+  },
+  "impactReport": {
+    "affectedVerdicts": [],
+    "recommendations": [
+      "Fix _flathub_normalize_scope to preserve custom installation names in FLATHUB_SCOPE output",
+      "Fix state machine: query failure on one scope → 'unknown', not 'not-configured'",
+      "Add cache invalidation: TTL, signal handler, or explicit flathub_clear_cache() function",
+      "Correct documentation: replace 'binary allowlist' claims with 'behavioral validation + optional SHA-256 pinning'",
+      "Add realpath availability check; degrade TOCTOU claim to 'narrows window portably'",
+      "Make custom installations probe respect ladder order: only run if no earlier step found flathub",
+      "Consider adding flathub_clear_cache() for explicit invalidation by callers"
+    ]
+  },
+  "deltaFromBaseline": [
+    "claim-3/17/20 NEW: Scope normalization discards custom installations (not in prior attack_report.json)",
+    "claim-15 NEW: State machine false 'not-configured' on partial failure",
+    "claim-6 NEW: Positive-only caching lacks TTL/invalidation",
+    "claim-7/21 NEW: False 'binary allowlist' documentation claim",
+    "claim-8 NEW: TOCTOU portability overclaim (realpath dependency)",
+    "claim-11 NEW: Custom installations probe violates ladder order",
+    "claim-5/19/23 FIXED: Prior CRITICALs (Claims 5, 19, 23 from attack_report.json) resolved in fixes"
+  ],
+  "escalationTriggered": false,
+  "ledgerEntry": {
+    "timestamp": "2026-09-24T21:45:00Z",
+    "inputHash": "sha256:fx-flathub-detect-sh-fixed-20260924",
+    "inputSummary": "Fixed Flathub repository enabled-detection library review",
+    "pipeline": "Adjudicate",
+    "verdict": "REVISE",
+    "confidence": 0.92,
+    "trigger": "new-matter",
+    "supersedes": "prior-verdict-20260924",
+    "cascadeStatus": "none"
+  }
+}

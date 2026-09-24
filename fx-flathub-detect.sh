@@ -21,7 +21,8 @@
 #
 # SCOPE SEMANTICS
 #   "Enabled" means the Flathub remote is enabled in ANY installation (system
-#   OR user). flatpak_scope reports where: system | user | both | empty.
+#   OR user OR custom --installation). flatpak_scope reports where:
+#   system | user | both | empty | <installation-name> | <comma-separated-list>
 #
 # REQUIREMENTS
 #   bash >= 4.0 ([[ =~ ]], ${var,,}? none used, here-strings and `type -P` are
@@ -35,8 +36,8 @@
 #   . /path/to/fx-flathub-detect.sh
 #   flathub_detect                # runs detection fresh; rc 0 = enabled
 #   if flathub_enabled; then ... fi   # lazy: runs detection once, cached
-#   flathub_state                 # echoes enabled|disabled|not-configured|unknown|flatpak-missing
-#   flathub_scope                 # echoes system|user|both|empty
+#   flathub_state                 # echoes enabled|disabled|not-configured|unknown|flatpak-missing|unreachable
+#   flathub_scope                 # echoes system|user|both|empty|<installation-name>|<comma-separated-list>
 #
 #   Accessor functions are LAZY and CACHE their result: the first call runs
 #   the detection once, and every later call in the same shell answers from
@@ -67,6 +68,11 @@
 #   outer shell -> sourced with _FLATHUB_DETECT_SOURCED set : no-op return 0
 #                   executed directly (bash fx-flathub-detect.sh): exit 2 (usage)
 #
+# STATE VALUES
+#   flathub_state echoes one of: enabled | disabled | not-configured | unknown | flatpak-missing | unreachable
+#   'unreachable' is emitted when FLATHUB_PROBE_REACHABILITY=1 and the Flathub
+#   remote is configured but network connectivity fails.
+#
 # DEBUGGING
 #   Set _FLATHUB_DEBUG=1 (or SCRIPT_DEBUG=1) to trace the detection steps to
 #   stderr. Evaluated per call, so it can be enabled mid-session.
@@ -95,7 +101,8 @@
 #     the host. Date 2026-09-13
 #   # LIMITATION: remotes in *additional* flatpak installations beyond the
 #     default system/user pair (e.g. a distro-defined third --installation) are
-#     out of scope; the command path could adopt `--installation=` later.
+#     detected via flatpak --installation= when a binary is present.
+#     Config-file fallback only covers freedesktop-standard paths.
 #     Hidden remotes (admin-marked invisible) are intentionally not counted.
 #     Date 2026-09-13
 
@@ -121,8 +128,14 @@ fi
 # caller PATH cannot redirect them). Follows the same pattern as fx-detect-os.sh.
 # ---------------------------------------------------------------------------
 if [ -z "${_FLATHUB_REALPATH:-}" ]; then
-    _FLATHUB_REALPATH="$(command -v realpath 2>/dev/null || printf '/usr/bin/realpath')"
-    readonly _FLATHUB_REALPATH
+    if command -v realpath >/dev/null 2>&1; then
+        _FLATHUB_REALPATH="$(command -v realpath)"
+        _FLATHUB_HAS_REALPATH=1
+    else
+        _FLATHUB_REALPATH=""
+        _FLATHUB_HAS_REALPATH=0
+    fi
+    readonly _FLATHUB_REALPATH _FLATHUB_HAS_REALPATH
 fi
 
 # ---------------------------------------------------------------------------
@@ -207,34 +220,53 @@ _flathub_has_name() {
 # NAME  _flathub_normalize_scope
 # ARGS  space-joined scope list (may carry a leading space)
 # WHAT  maps a space-joined scope list onto the stable vocabulary
-#       system | user | both | empty.
+#       system | user | both | empty | <custom> | <comma-separated>
+#       Custom installation names (any token other than "system"/"user") are
+#       preserved and joined with commas.
 # RET   0 always
 _flathub_normalize_scope() {
     local tok has_system=0 has_user=0
-    local -a toks
-    # split the (single-space-joined) list into tokens; only our own tokens
-    # ("system"/"user") can ever appear here
+    local -a toks custom_tokens=()
+    # split the (single-space-joined) list into tokens
     read -r -a toks <<< "$1"
     for tok in "${toks[@]}"; do
         [ "$tok" = "system" ] && has_system=1
         [ "$tok" = "user" ]   && has_user=1
+        # any token other than system/user is a custom installation name
+        if [ "$tok" != "system" ] && [ "$tok" != "user" ]; then
+            custom_tokens+=("$tok")
+        fi
     done
+    local base_scope=""
     if [ "$has_system" = "1" ] && [ "$has_user" = "1" ]; then
-        printf '%s\n' "both"
+        base_scope="both"
     elif [ "$has_system" = "1" ]; then
-        printf '%s\n' "system"
+        base_scope="system"
     elif [ "$has_user" = "1" ]; then
-        printf '%s\n' "user"
+        base_scope="user"
     else
-        printf '%s\n' "empty"
+        base_scope="empty"
+    fi
+    # If we have custom installation names, join them with commas
+    if [ "${#custom_tokens[@]}" -gt 0 ]; then
+        local custom_joined
+        custom_joined=$(IFS=,; printf '%s\n' "${custom_tokens[*]}")
+        if [ "$base_scope" = "empty" ]; then
+            printf '%s\n' "$custom_joined"
+        else
+            printf '%s,%s\n' "$base_scope" "$custom_joined"
+        fi
+    else
+        printf '%s\n' "$base_scope"
     fi
 }
 
 # NAME  _flathub_validate_binary
 # ARGS  binary path (from _FLATHUB_PINNED_FLATPAK or PATH lookup)
 # WHAT  validates that the binary path is an absolute path to an executable
-#       file in an allowed location, and optionally verifies it responds like
-#       flatpak (--version). This prevents PATH injection via _FLATHUB_PINNED_FLATPAK.
+#       file, and verifies it responds like flatpak (--version).
+#       Optional SHA-256 verification via _FLATHUB_FLATPAK_SHA256 (production use).
+#       No hardcoded allowlist — validation is by behavior, not path.
 # RET   0 on success (prints validated path), 1 on failure
 _flathub_validate_binary() {
     local bin="$1"
@@ -243,49 +275,23 @@ _flathub_validate_binary() {
     case "$bin" in /*) ;; *) return 1 ;; esac
     # Must exist and be executable regular file
     [ -f "$bin" ] && [ -x "$bin" ] || return 1
-    # Must be in an allowed binary path (defeats PATH injection + binary substitution)
-    case "$bin" in
-        /usr/bin/flatpak|/usr/local/bin/flatpak|/opt/homebrew/bin/flatpak) ;;
-        /nix/store/*/bin/flatpak) ;;
-        /nix/var/nix/profiles/system/sw/bin/flatpak) ;;
-        /nix/var/nix/profiles/per-user/*/bin/flatpak) ;;
-        /run/current-system/sw/bin/flatpak) ;;
-        /var/lib/flatpak/exports/bin/flatpak) ;;
-        /snap/bin/flatpak) ;;
-        /home/linuxbrew/.linuxbrew/bin/flatpak) ;;
-        ~/.local/bin/flatpak) ;;
-        /run/host/usr/bin/flatpak) ;;
-        /usr/lib/flatpak/flatpak) ;;
-        *)
-            # C4: SHA256 escape hatch only allowed in test mode (FLATPAK_TEST_MODE=1)
-            if [ "${FLATPAK_TEST_MODE:-0}" = "1" ] && [ -n "${_FLATHUB_FLATPAK_SHA256:-}" ]; then
-                # In test mode, if the binary path matches the pinned flatpak, trust it directly
-                # This avoids SHA256 computation issues on platforms without sha256sum/shasum/openssl
-                if [ "${_FLATHUB_PINNED_FLATPAK:-}" = "$bin" ]; then
-                    # Trust the pinned flatpak in test mode
-                    echo "[DEBUG] _flathub_validate_binary: trusting pinned flatpak at $bin" >&2
-                    :
-                else
-                    # Portable SHA256: try multiple commands in order
-                    local sum
-                    if command -v sha256sum >/dev/null 2>&1; then
-                        sum="$(sha256sum "$bin" 2>/dev/null | cut -d' ' -f1)"
-                    elif command -v shasum >/dev/null 2>&1; then
-                        sum="$(shasum -a 256 "$bin" 2>/dev/null | cut -d' ' -f1)"
-                    elif command -v openssl >/dev/null 2>&1; then
-                        sum="$(openssl dgst -sha256 "$bin" 2>/dev/null | sed 's/.*= //')"
-                    else
-                        echo "[DEBUG] _flathub_validate_binary: no sha256sum/shasum/openssl available for SHA256 verification" >&2
-                        return 1
-                    fi
-                    echo "[DEBUG] _flathub_validate_binary: computed SHA256=$sum, expected=$_FLATHUB_FLATPAK_SHA256" >&2
-                    [ -n "$sum" ] && [ "$sum" = "$_FLATHUB_FLATPAK_SHA256" ] || return 1
-                fi
-            else
-                return 1
-            fi
-            ;;
-    esac
+    # Optional: SHA-256 verification if pinned hash provided (production use)
+    # Works regardless of FLATPAK_TEST_MODE — not test-gated
+    if [ -n "${_FLATHUB_FLATPAK_SHA256:-}" ]; then
+        local sum
+        if command -v sha256sum >/dev/null 2>&1; then
+            sum="$(sha256sum "$bin" 2>/dev/null | cut -d' ' -f1)"
+        elif command -v shasum >/dev/null 2>&1; then
+            sum="$(shasum -a 256 "$bin" 2>/dev/null | cut -d' ' -f1)"
+        elif command -v openssl >/dev/null 2>&1; then
+            sum="$(openssl dgst -sha256 "$bin" 2>/dev/null | sed 's/.*= //')"
+        else
+            _flathub_debug "no sha256sum/shasum/openssl available for SHA256 verification"
+            return 1
+        fi
+        _flathub_debug "computed SHA256=$sum, expected=$_FLATHUB_FLATPAK_SHA256"
+        [ -n "$sum" ] && [ "$sum" = "$_FLATHUB_FLATPAK_SHA256" ] || return 1
+    fi
     # Verify it's actually flatpak via --version (read-only, benign)
     # Pattern matches semantic version output like "1.15.8", "1.15.8-1", "1.15.8+git.abc123"
     # Use bash built-in regex to avoid grep dependency
@@ -367,10 +373,11 @@ _flathub_check_homebrew() {
 #       _flathub_cf_configured / _flathub_cf_enabled. A present section is
 #       enabled by default; an `enabled=false` (or no/off/0) key disables it.
 #       Malformed values are treated as disabled (fail-safe).
-#       C3: Uses fd-based atomic read to eliminate TOCTOU window.
+#       C3: Uses fd-based atomic read to narrow TOCTOU window.
+#       Validates both original and canonical paths against allowlists.
 # RET   0 flathub section present, 1 file unreadable or no section
 _flathub_probe_config() {
-    local f="$1" line section="" k v f_canon
+    local f="$1" line section="" k v
     local fd
     _flathub_cf_configured=0
     _flathub_cf_enabled=0
@@ -379,17 +386,25 @@ _flathub_probe_config() {
         _flathub_debug "config unreadable"
         return 1
     fi
-    # C3: TOCTOU-safe fd-based validation
-    # Open file descriptor FIRST, then validate via fd, then read via fd
-    # This eliminates the symlink race between validation and read
+    # C3: TOCTOU-safe fd-based validation (portable, no /proc dependency)
+    # Narrows the symlink race window between stat and read.
+    # Uses realpath if available; falls back to readlink -f; degrades to best-effort.
+    # 1. Validate original path against allowlist BEFORE opening
+    _flathub_validate_config_path_original "$f" || return 1
+    # 2. Open file descriptor FIRST
     exec {fd}<"$f" || { _flathub_debug "failed to open config fd"; return 1; }
+    # 3. Validate canonical path (portable: realpath or readlink -f)
+    local canon_path
+    if [ "${_FLATHUB_HAS_REALPATH:-0}" -eq 1 ]; then
+        canon_path="$("$_FLATHUB_REALPATH" "$f" 2>/dev/null)"
+    elif command -v readlink >/dev/null 2>&1; then
+        canon_path="$(readlink -f "$f" 2>/dev/null)"
+    else
+        canon_path="$f"
+    fi
+    _flathub_validate_config_path_canonical "$canon_path" || { exec {fd}<&-; return 1; }
     
-    # Validate the fd path (resolves symlinks via /proc/self/fd)
-    local fd_path
-    fd_path="$(_flathub_fd_path "$fd")" || { exec {fd}<&-; return 1; }
-    _flathub_validate_config_path_canonical "$fd_path" || { exec {fd}<&-; return 1; }
-    
-    # Read via fd (atomic, no TOCTOU)
+    # 4. Read via fd (atomic, no TOCTOU)
     local -a config_lines
     while IFS= read -r -u "$fd" line || [ -n "$line" ]; do
         config_lines+=("$line")
@@ -441,23 +456,7 @@ _flathub_probe_config() {
     [ "$_flathub_cf_configured" = "1" ]
 }
 
-# NAME  _flathub_fd_path
-# ARGS  fd (file descriptor number)
-# WHAT  returns the canonical path for an open file descriptor via /proc/self/fd
-#       used for TOCTOU-safe path validation after opening
-# RET   0 on success (prints path), 1 on failure
-_flathub_fd_path() {
-    local fd="$1"
-    local proc_fd="/proc/self/fd/$fd"
-    if [ ! -e "$proc_fd" ]; then
-        _flathub_debug "fd path not accessible: $proc_fd"
-        return 1
-    fi
-    local canon_path
-    canon_path="$("$_FLATHUB_REALPATH" "$proc_fd" 2>/dev/null)" || return 1
-    printf '%s\n' "$canon_path"
-    return 0
-}
+
 
 # NAME  _flathub_validate_config_path_original
 # ARGS  original config file path (before realpath)
@@ -563,6 +562,42 @@ _flathub_probe_files() {
         FLATHUB_SCOPE="$(_flathub_normalize_scope "$scope_list")"
     fi
     _flathub_files_malformed="$malformed"
+    [ "$detected" = "1" ]
+}
+
+# NAME  _flathub_probe_installations
+# ARGS  none
+# WHAT  probes custom flatpak installations defined in /etc/flatpak/installations.d/*.conf
+#       for a configured and enabled flathub remote. Updates globals if found.
+#       Returns 0 on success (including no installations.d dir), 1 only on error.
+# RET   0 if flathub found in any custom installation, 1 otherwise
+_flathub_probe_installations() {
+    local bin="${FLATHUB_BIN:-}"
+    [ -n "$bin" ] || return 0
+    local dir="/etc/flatpak/installations.d"
+    [ -d "$dir" ] || return 0
+    local conf_file inst_name scope_list="" detected=0
+    for conf_file in "$dir"/*.conf; do
+        [ -f "$conf_file" ] || continue
+        # Extract installation name from [installation "name"] or [installation name]
+        inst_name=$(grep -E '^\[installation[[:space:]]+["'"'"']?([^"'"'"']+)["'"'"']?\]' "$conf_file" 2>/dev/null | head -1 | sed -E 's/^\[installation[[:space:]]+["'"'"']?([^"'"'"']+)["'"'"']?\]/\1/')
+        [ -n "$inst_name" ] || continue
+        _flathub_debug "checking custom installation: $inst_name"
+        # Query flathub remote in this installation
+        local out rc=0
+        out="$("$bin" remote-list --installation="$inst_name" --columns=name 2>/dev/null)" || rc=$?
+        if [ "$rc" -eq 0 ] && _flathub_has_name "$out"; then
+            FLATHUB_ENABLED=1
+            FLATHUB_CONFIGURED=1
+            FLATHUB_STATE=enabled
+            scope_list="$scope_list $inst_name"
+            detected=1
+            _flathub_debug "flathub enabled in custom installation: $inst_name"
+        fi
+    done
+    if [ -n "$scope_list" ]; then
+        FLATHUB_SCOPE="$(_flathub_normalize_scope "$scope_list")"
+    fi
     [ "$detected" = "1" ]
 }
 
@@ -693,16 +728,6 @@ flathub_detect() {
         done
     fi
 
-    # --- step 3: file fallback ---
-    # Fallback triggers when:
-    # - binary is absent OR
-    # - binary exists but ALL normal queries failed (normal_answered=0)
-    # This matches the documented ladder: config fallback only when binary absent OR all queries fail
-    if [ -z "$bin" ] || [ "$normal_answered" -eq 0 ]; then
-        _flathub_debug "command path inconclusive (bin=${bin:-none} normal_answered=$normal_answered); probing config files"
-        _flathub_probe_files
-    fi
-
     # --- finalize ---
     # Aggregate per-scope results with proper isolation
     local any_enabled=0 any_disabled=0 any_configured=0 scopes_with_flathub="" scopes_configured=""
@@ -733,6 +758,23 @@ flathub_detect() {
         scopes_json_parts+=("{\"scope\":\"$scope\",\"enabled\":$scope_enabled,\"disabled\":$scope_disabled,\"configured\":$scope_configured,\"reachable\":$scope_reachable_val${scope_error:+,\"error\":\"$scope_error\"}}")
     done
     FLATHUB_SCOPES_JSON="[$(IFS=,; echo "${scopes_json_parts[*]}")]"
+
+    # --- step 2b: custom installation probe ---
+    # Check for flathub in custom --installation directories (e.g., Fedora Silverblue, Steam Deck)
+    # Only runs if no earlier step found flathub enabled (ladder order)
+    if [ "$any_enabled" -eq 0 ]; then
+        _flathub_probe_installations
+    fi
+
+    # --- step 3: file fallback ---
+    # Fallback triggers when:
+    # - binary is absent OR
+    # - ALL normal queries failed (no authoritative answer from any scope)
+    # This matches the documented ladder: config fallback only when binary absent OR all queries fail
+    if [ -z "$bin" ] || [ "$normal_answered" -eq 0 ]; then
+        _flathub_debug "command path inconclusive (bin=${bin:-none} normal_answered=$normal_answered); probing config files"
+        _flathub_probe_files
+    fi
 
     # Also incorporate file fallback results
     if [ "${FLATHUB_ENABLED:-0}" = "1" ]; then
@@ -772,11 +814,11 @@ flathub_detect() {
         # Both scopes answered authoritatively with no flathub
         FLATHUB_STATE=not-configured
     elif [ "${scope_normal_ok[system]:-0}" = "1" ] && [ "${scope_has_flathub[system]:-0}" = "0" ] && [ "${scope_disabled_ok[system]:-0}" = "0" ] && [ "${scope_normal_ok[user]:-0}" = "0" ]; then
-        # System authoritative no-flathub, user unreachable -> trust system
-        FLATHUB_STATE=not-configured
+        # System authoritative no-flathub, user unreachable -> unknown (fail closed)
+        FLATHUB_STATE=unknown
     elif [ "${scope_normal_ok[user]:-0}" = "1" ] && [ "${scope_has_flathub[user]:-0}" = "0" ] && [ "${scope_disabled_ok[user]:-0}" = "0" ] && [ "${scope_normal_ok[system]:-0}" = "0" ]; then
-        # User authoritative no-flathub, system unreachable -> trust user
-        FLATHUB_STATE=not-configured
+        # User authoritative no-flathub, system unreachable -> unknown (fail closed)
+        FLATHUB_STATE=unknown
     elif [ "$normal_answered" -eq 0 ]; then
         # No scope answered authoritatively
         FLATHUB_STATE=unknown
@@ -785,9 +827,18 @@ flathub_detect() {
         FLATHUB_STATE=unknown
     fi
 
-    _FLATHUB_DETECTED=1
-    # Store cache hash for integrity verification on subsequent calls
-    _FLATHUB_CACHE_HASH="$(_flathub_compute_cache_hash)"
+    # Only cache on successful detection (enabled=1).
+    # Negative results are NOT cached — allows retry on transient failures.
+    if [ "$FLATHUB_ENABLED" = "1" ]; then
+        _FLATHUB_DETECTED=1
+        _FLATHUB_CACHE_TIMESTAMP="${EPOCHSECONDS:-$(date +%s)}"
+        # Store cache hash for integrity verification on subsequent calls
+        _FLATHUB_CACHE_HASH="$(_flathub_compute_cache_hash)"
+    else
+        _FLATHUB_DETECTED=0
+        _FLATHUB_CACHE_HASH=""
+        _FLATHUB_CACHE_TIMESTAMP=""
+    fi
     _flathub_debug "RESULT enabled=$FLATHUB_ENABLED configured=$FLATHUB_CONFIGURED state=$FLATHUB_STATE scope=${FLATHUB_SCOPE:-empty} scopes_json=$FLATHUB_SCOPES_JSON"
     [ "$FLATHUB_ENABLED" = "1" ]
 }
@@ -811,15 +862,24 @@ flathub_scope_enabled() {
 # WHAT  internal: runs detection at most once per shell (lazy cache backing
 #       every accessor). Consumers therefore never need to call flathub_detect
 #       first, and repeated accessor calls never re-spawn subprocesses.
-#       Includes cache integrity verification to prevent cache poisoning.
+#       Includes cache integrity verification and TTL expiration to prevent
+#       stale results. Errors from flathub_detect are NOT suppressed — they propagate.
 _flathub_ensure() {
-    if [ "${_FLATHUB_DETECTED:-0}" != "1" ]; then
-        flathub_detect >/dev/null 2>&1 || true
+    local now="${EPOCHSECONDS:-$(date +%s)}"
+    local cache_age=0
+    if [ -n "${_FLATHUB_CACHE_TIMESTAMP:-}" ]; then
+        cache_age=$((now - _FLATHUB_CACHE_TIMESTAMP))
+    fi
+    if [ "${_FLATHUB_DETECTED:-0}" != "1" ] || [ "$cache_age" -gt 300 ]; then
+        if [ "$cache_age" -gt 300 ]; then
+            _flathub_debug "cache TTL expired (age=${cache_age}s); re-running detection"
+        fi
+        flathub_detect
     else
         # Cache integrity check: verify cached results match a recomputed hash
         _flathub_verify_cache_integrity || {
             _flathub_debug "cache integrity check failed; re-running detection"
-            flathub_detect >/dev/null 2>&1 || true
+            flathub_detect
         }
     fi
 }
@@ -920,6 +980,20 @@ flathub_enabled() { _flathub_ensure; [ "${FLATHUB_ENABLED:-0}" = "1" ]; }
 flathub_state()   { _flathub_ensure; printf '%s\n' "${FLATHUB_STATE:-not-configured}"; }
 flathub_scope()   { _flathub_ensure; printf '%s\n' "${FLATHUB_SCOPE:-empty}"; }
 flathub_reachable() { _flathub_ensure; [ "${FLATHUB_REACHABLE:-0}" = "1" ]; }
+
+# NAME  flathub_clear_cache
+# ARGS  none
+# WHAT  explicitly clears the detection cache, forcing a fresh detection on
+#       the next accessor call. Useful when the caller knows the Flatpak
+#       configuration has changed (e.g., after flatpak remote-add/disable).
+# RET   0 always
+flathub_clear_cache() {
+    _FLATHUB_DETECTED=0
+    _FLATHUB_CACHE_HASH=""
+    _FLATHUB_CACHE_TIMESTAMP=""
+    _flathub_debug "cache cleared"
+    return 0
+}
 
 # ---------------------------------------------------------------------------
 # Direct-execution guard (library is source-only)

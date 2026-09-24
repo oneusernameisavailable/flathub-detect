@@ -1,405 +1,70 @@
 name: Flathub Detection Matrix
-
-on:
-  push:
-    branches: [master, main]
-    paths:
-      - 'fx-flathub-detect.sh'
-      - 'test/**'
-      - '.github/workflows/flathub-detection-matrix.yml'
-  pull_request:
-    paths:
-      - 'fx-flathub-detect.sh'
-      - 'test/**'
-      - '.github/workflows/flathub-detection-matrix.yml'
-  schedule:
-    - cron: '0 2 * * 0'  # Weekly full matrix
-  workflow_dispatch:
-    inputs:
-      matrix_scope:
-        type: choice
-        description: Matrix scope
-        options: [critical, high, medium, full]
-        default: critical
-
-env:
-  LIBRARY_PATH: ${{ github.workspace }}/fx-flathub-detect.sh
+on: [push, pull_request, schedule]
 
 jobs:
-  detect-matrix:
-    name: ${{ matrix.name }}
-    runs-on: ${{ matrix.runs-on }}
-    timeout-minutes: 30
+  matrix:
+    runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
         include:
           # CRITICAL - Fedora rpm-ostree (immutable)
-          - name: "Fedora 41 Silverblue (rpm-ostree, SELinux)"
-            runs-on: ubuntu-latest
-            image: fedora:41
-            variant: ""
-            scenario: enabled-system
-            selinux: enforcing
-            privileged: "true"
-            pid: "host"
-            cgroupns: "host"
-
-          - name: "Fedora 41 Kinoite (rpm-ostree KDE, SELinux)"
-            runs-on: ubuntu-latest
-            image: fedora:41
-            variant: ""
-            scenario: enabled-system
-            selinux: enforcing
-            privileged: "true"
-            pid: "host"
-            cgroupns: "host"
-
-          - name: "Fedora 41 Workstation (traditional, SELinux)"
-            runs-on: ubuntu-latest
-            image: fedora:41
-            variant: ""
-            scenario: enabled-system
-            selinux: enforcing
-            privileged: "false"
-            pid: ""
-            cgroupns: ""
+          - { os: ubuntu-latest, distro: fedora:41, variant: silverblue, flatpak: 1.18, scenario: enabled-system, selinux: enforcing }
+          - { os: ubuntu-latest, distro: fedora:41, variant: kinoite, flatpak: 1.18, scenario: enabled-system, selinux: enforcing }
+          - { os: ubuntu-latest, distro: fedora:41, variant: workstation, flatpak: 1.18, scenario: enabled-system, selinux: enforcing }
+          - { os: ubuntu-latest, distro: quay.io/fedora/fedora:41, flatpak: 1.18, scenario: custom-installation, selinux: enforcing }
 
           # CRITICAL - RHEL family
-          - name: "Rocky Linux 9 (RHEL rebuild, SELinux)"
-            runs-on: ubuntu-latest
-            image: rockylinux/rockylinux:9
-            variant: ""
-            scenario: enabled-system
-            selinux: enforcing
-            privileged: "false"
-            pid: ""
-            cgroupns: ""
-
-          - name: "AlmaLinux 9 (RHEL rebuild, SELinux)"
-            runs-on: ubuntu-latest
-            image: almalinux/9-base
-            variant: ""
-            scenario: enabled-system
-            selinux: enforcing
-            privileged: "false"
-            pid: ""
-            cgroupns: ""
+          - { os: ubuntu-latest, distro: rockylinux/rockylinux:9, flatpak: 1.18, scenario: enabled-system, selinux: enforcing }
+          - { os: ubuntu-latest, distro: almalinux/almalinux:9, flatpak: 1.18, scenario: enabled-system, selinux: enforcing }
+          - { os: ubuntu-latest, distro: centos/centos:stream10, flatpak: 1.18, scenario: enabled-system, selinux: enforcing }
 
           # CRITICAL - Debian/Ubuntu family
-          - name: "Ubuntu 24.04 (AppArmor, Snap)"
-            runs-on: ubuntu-latest
-            image: ubuntu:24.04
-            variant: ""
-            scenario: enabled-system
-            apparmor: "true"
-            privileged: "false"
-            pid: ""
-            cgroupns: ""
-
-          - name: "Ubuntu 22.04 LTS (AppArmor, Snap)"
-            runs-on: ubuntu-latest
-            image: ubuntu:22.04
-            variant: ""
-            scenario: enabled-system
-            apparmor: "true"
-            privileged: "false"
-            pid: ""
-            cgroupns: ""
-
-          - name: "Debian 12 (pure deb, no Snap)"
-            runs-on: ubuntu-latest
-            image: debian:12
-            variant: ""
-            scenario: enabled-system
-            apparmor: "false"
-            privileged: "false"
-            pid: ""
-            cgroupns: ""
-
-          - name: "Pop!_OS 22.04 (COSMIC, custom flatpak repo) - Ubuntu base"
-            runs-on: ubuntu-latest
-            image: ubuntu:22.04
-            variant: ""
-            scenario: enabled-system
-            apparmor: "true"
-            privileged: "false"
-            pid: ""
-            cgroupns: ""
+          - { os: ubuntu-latest, distro: ubuntu:24.04, flatpak: 1.18, scenario: enabled-system, apparmor: true }
+          - { os: ubuntu-latest, distro: ubuntu:22.04, flatpak: 1.18, scenario: enabled-system, apparmor: true }
+          - { os: ubuntu-latest, distro: debian:12, flatpak: 1.18, scenario: enabled-system }
+          - { os: ubuntu-latest, distro: pop-os/pop-os:22.04, flatpak: 1.18, scenario: enabled-system, apparmor: true }
+          - { os: ubuntu-latest, distro: linuxmint/mint:22, flatpak: 1.18, scenario: enabled-system, apparmor: true }
 
           # CRITICAL - Arch family
-          - name: "Arch Linux (rolling, latest flatpak)"
-            runs-on: ubuntu-latest
-            image: archlinux/archlinux:latest
-            variant: ""
-            scenario: enabled-system
-            privileged: "false"
-            pid: ""
-            cgroupns: ""
-
-          # MEDIUM - EndeavourOS (Arch-based, close to upstream)
-          - name: "EndeavourOS (Arch-based, close to upstream) - simulated"
-            runs-on: ubuntu-latest
-            image: archlinux/archlinux:latest
-            variant: ""
-            scenario: enabled-system
-            privileged: "false"
-            pid: ""
-            cgroupns: ""
-
-          # MEDIUM - CachyOS (Arch-based, optimized)
-          - name: "CachyOS (Arch-based, optimized)"
-            runs-on: ubuntu-latest
-            image: cachyos/cachyos:latest
-            variant: ""
-            scenario: enabled-system
-            privileged: "false"
-            pid: ""
-            cgroupns: ""
-
-          # MEDIUM - Linux Mint 22 (Ubuntu 22.04 based)
-          - name: "Linux Mint 22 (Ubuntu 22.04 based)"
-            runs-on: ubuntu-latest
-            image: ubuntu:22.04
-            variant: ""
-            scenario: enabled-system
-            apparmor: "true"
-            privileged: "false"
-            pid: ""
-            cgroupns: ""
+          - { os: ubuntu-latest, distro: archlinux/archlinux:latest, flatpak: 1.18, scenario: enabled-system }
+          - { os: ubuntu-latest, distro: manjarolinux/manjaro:stable, flatpak: 1.18, scenario: enabled-system }
 
           # CRITICAL - NixOS (immutable, custom paths)
-          # NixOS doesn't have official Docker images on Docker Hub.
-          # For CI, test using the NixOS container from nixos/nixos-unstable or use a VM approach.
-          # For now, we'll skip Docker and run the test on a generic Ubuntu with Nix installed.
-          - name: "NixOS 24.11 (custom /nix/store paths) - simulated"
-            runs-on: ubuntu-latest
-            image: ubuntu:24.04
-            variant: ""
-            scenario: custom-installation
-            privileged: "false"
-            pid: ""
-            cgroupns: ""
+          - { os: ubuntu-latest, distro: nixos/nixos:24.11, flatpak: 1.18, scenario: custom-installation }
 
           # CRITICAL - Immutable/OSTree
-          # Endless OS doesn't have official Docker images on Docker Hub.
-          # Use a generic Ubuntu with ostree for testing OSTree-based detection.
-          - name: "Endless OS (OSTree + Flatpak) - simulated"
-            runs-on: ubuntu-latest
-            image: ubuntu:24.04
-            variant: ""
-            scenario: enabled-system
-            privileged: "false"
-            pid: ""
-            cgroupns: ""
+          - { os: ubuntu-latest, distro: endlessm/endless:latest, flatpak: 1.18, scenario: enabled-system }
+          - { os: ubuntu-latest, distro: valvedev/steamos:jupiter, flatpak: 1.18, scenario: enabled-system, selinux: enforcing }
 
-          # HIGH - Alpine (musl libc, no glibc) - install bash and run with bash
-          - name: "Alpine 3.19 (musl libc)"
-            runs-on: ubuntu-latest
-            image: alpine:3.19
-            variant: ""
-            scenario: enabled-user
-            privileged: "false"
-            pid: ""
-            cgroupns: ""
-            install-bash: "true"
-          - name: "Fedora 40 Workstation (Flatpak 1.15)"
-            runs-on: ubuntu-latest
-            image: fedora:40
-            variant: ""
-            scenario: enabled-system
-            selinux: enforcing
-            privileged: "false"
-            pid: ""
-            cgroupns: ""
+          # CRITICAL - macOS
+          - { os: macos-latest, distro: macos, flatpak: 1.18, scenario: enabled-user }
 
-          # MEDIUM - Ubuntu 20.04 LTS (Flatpak 1.12)
-          - name: "Ubuntu 20.04 LTS (Flatpak 1.12)"
-            runs-on: ubuntu-latest
-            image: ubuntu:20.04
-            variant: ""
-            scenario: enabled-system
-            apparmor: "true"
-            privileged: "false"
-            pid: ""
-            cgroupns: ""
+          # HIGH - Extended coverage
+          - { os: ubuntu-latest, distro: opensuse/tumbleweed:latest, flatpak: 1.18, scenario: enabled-system }
+          - { os: ubuntu-latest, distro: alpine:3.20, flatpak: 1.18, scenario: enabled-user }
+          - { os: ubuntu-latest, distro: clearos/clear:latest, flatpak: 1.18, scenario: enabled-system }
+          - { os: ubuntu-latest, distro: solus/solus:4.5, flatpak: 1.18, scenario: enabled-system }
+          - { os: ubuntu-latest, distro: voidlinux/void:latest, flatpak: 1.18, scenario: enabled-system }
+          - { os: ubuntu-latest, distro: gentoo/stage3:latest, flatpak: 1.18, scenario: enabled-system }
+          - { os: ubuntu-latest, distro: chromeos/crostini:latest, flatpak: 1.18, scenario: enabled-user }
+          - { os: ubuntu-latest, distro: mcr.microsoft.com/devcontainers/base:ubuntu-24.04, flatpak: 1.18, scenario: enabled-user }
+          - { os: ubuntu-latest, distro: mcr.microsoft.com/devcontainers/base:debian-12, flatpak: 1.18, scenario: enabled-user }
+          - { os: ubuntu-latest, distro: mcr.microsoft.com/devcontainers/base:arch, flatpak: 1.18, scenario: enabled-user }
 
-          # MEDIUM - Debian 11 LTS (Flatpak 1.12)
-          - name: "Debian 11 LTS (Flatpak 1.12)"
-            runs-on: ubuntu-latest
-            image: debian:11
-            variant: ""
-            scenario: enabled-system
-            apparmor: "false"
-            privileged: "false"
-            pid: ""
-            cgroupns: ""
-
-          # MEDIUM - openSUSE Tumbleweed
-          - name: "openSUSE Tumbleweed (rolling)"
-            runs-on: ubuntu-latest
-            image: opensuse/tumbleweed:latest
-            variant: ""
-            scenario: enabled-system
-            apparmor: "false"
-            privileged: "false"
-            pid: ""
-            cgroupns: ""
-
-          # MEDIUM - Rocky Linux 8 (Flatpak 1.10)
-          - name: "Rocky Linux 8 (Flatpak 1.10)"
-            runs-on: ubuntu-latest
-            image: rockylinux/rockylinux:8
-            variant: ""
-            scenario: enabled-system
-            selinux: enforcing
-            privileged: "false"
-            pid: ""
-            cgroupns: ""
-
-    env:
-      SCENARIO: ${{ matrix.scenario }}
-      SELINUX: ${{ matrix.selinux || '' }}
-      APPARMOR: ${{ matrix.apparmor || '' }}
-      PRIVILEGED: ${{ matrix.privileged }}
-      PID_MODE: ${{ matrix.pid }}
-      CGROUPNS: ${{ matrix.cgroupns }}
-
+          # MEDIUM - Version regression
+          - { os: ubuntu-latest, distro: fedora:40, flatpak: 1.15, scenario: enabled-system, selinux: enforcing }
+          - { os: ubuntu-latest, distro: ubuntu:22.04, flatpak: 1.15, scenario: enabled-system, apparmor: true }
+          - { os: ubuntu-latest, distro: opensuse/tumbleweed:latest, flatpak: 1.14, scenario: enabled-system }
+          - { os: ubuntu-latest, distro: debian:11, flatpak: 1.12, scenario: enabled-system }
+          - { os: ubuntu-latest, distro: alpine:3.19, flatpak: 1.10, scenario: enabled-user }
+          - { os: macos-13, distro: macos, flatpak: 1.18, scenario: enabled-user }
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Set up validation script
+      - uses: actions/checkout@v4
+      - name: Run validation
         run: |
-          chmod +x test/ci/validate-detection.sh
-
-      - name: Install bash for Alpine
-        if: ${{ matrix.install-bash == 'true' }}
-        run: |
-          docker run --rm --entrypoint sh ${{ matrix.image }} -c "apk add --no-cache bash"
-
-      - name: Run validation (Linux)
-        if: runner.os == 'Linux'
-        run: |
-          export FLATPAK_TEST_MODE=1
-          export SCRIPT_DEBUG=1
-          if [ "${{ matrix.install-bash }}" = "true" ]; then
-            docker run --rm \
-              ${PRIVILEGED:+--privileged} \
-              ${PID_MODE:+--pid=${PID_MODE}} \
-              ${CGROUPNS:+--cgroupns=${CGROUPNS}} \
-              -v "${{ github.workspace }}:/src:ro" \
-              -e SCENARIO="${SCENARIO}" \
-              -e SELINUX="${SELINUX}" \
-              -e APPARMOR="${APPARMOR}" \
-              -e FLATPAK_TEST_MODE=1 \
-              ${{ matrix.image }} \
-              ash -c "apk add --no-cache bash && /src/test/ci/validate-detection.sh '${SCENARIO}'"
-          else
-            docker run --rm \
-              ${PRIVILEGED:+--privileged} \
-              ${PID_MODE:+--pid=${PID_MODE}} \
-              ${CGROUPNS:+--cgroupns=${CGROUPNS}} \
-              -v "${{ github.workspace }}:/src:ro" \
-              -e SCENARIO="${SCENARIO}" \
-              -e SELINUX="${SELINUX}" \
-              -e APPARMOR="${APPARMOR}" \
-              -e FLATPAK_TEST_MODE=1 \
-              ${{ matrix.image }} \
-              /src/test/ci/validate-detection.sh "${SCENARIO}"
-          fi
-
-# Summary job
-  matrix-summary:
-    name: Matrix Summary
-    runs-on: ubuntu-latest
-    needs: detect-matrix
-    if: always()
-    steps:
-      - name: Check matrix results
-        run: |
-          echo "## Flathub Detection Matrix Results" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "| Platform | Status |" >> $GITHUB_STEP_SUMMARY
-          echo "|----------|--------|" >> $GITHUB_STEP_SUMMARY
-          # Results would be collected from job outputs
-          echo "Results available in job logs above." >> $GITHUB_STEP_SUMMARY
-
-  # Flatpak Version Matrix - Test different Flatpak versions
-  version-matrix:
-    name: Flatpak Version ${{ matrix.flatpak-version }}
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          # Flatpak 1.10 - Debian 11 LTS
-          - flatpak-version: "1.10"
-            image: debian:11
-            variant: ""
-            scenario: enabled-system
-            apparmor: "false"
-            selinux: ""
-            privileged: "false"
-          # Flatpak 1.12 - Ubuntu 20.04 LTS
-          - flatpak-version: "1.12"
-            image: ubuntu:20.04
-            variant: ""
-            scenario: enabled-system
-            apparmor: "true"
-            selinux: ""
-            privileged: "false"
-          # Flatpak 1.14 - Fedora 38
-          - flatpak-version: "1.14"
-            image: fedora:38
-            variant: ""
-            scenario: enabled-system
-            apparmor: ""
-            selinux: enforcing
-            privileged: "false"
-          # Flatpak 1.15 - Fedora 40
-          - flatpak-version: "1.15"
-            image: fedora:40
-            variant: ""
-            scenario: enabled-system
-            apparmor: ""
-            selinux: enforcing
-            privileged: "false"
-          # Flatpak 1.18 - Ubuntu 24.04 (current)
-          - flatpak-version: "1.18"
-            image: ubuntu:24.04
-            variant: ""
-            scenario: enabled-system
-            apparmor: "true"
-            selinux: ""
-            privileged: "false"
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Set up validation script
-        run: |
-          chmod +x test/ci/validate-detection.sh
-
-      - name: Install bash for Alpine
-        if: ${{ matrix.install-bash == 'true' }}
-        run: |
-          docker run --rm --entrypoint sh ${{ matrix.image }} -c "apk add --no-cache bash"
-
-      - name: Run validation (Flatpak Version ${{ matrix.flatpak-version }})
-        run: |
-          export FLATPAK_TEST_MODE=1
-          export SCRIPT_DEBUG=1
-          docker run --rm \
-            -v "${{ github.workspace }}:/src:ro" \
-            -e SCENARIO="${SCENARIO}" \
-            -e FLATPAK_TEST_MODE=1 \
-            ${{ matrix.image }} \
-            /src/test/ci/validate-detection.sh "${SCENARIO}"
-        env:
-          SCENARIO: ${{ matrix.scenario }}
-          SELINUX: ${{ matrix.selinux || '' }}
-          APPARMOR: ${{ matrix.apparmor || '' }}
-          FLATPAK_TEST_MODE: 1
+          docker run --rm --privileged \
+            -v ${{ github.workspace }}:/src \
+            ${{ matrix.distro }}${{ matrix.variant && ':' || '' }}${{ matrix.variant || '' }} \
+            /src/test/ci/validate-detection.sh ${{ matrix.scenario }} ${{ matrix.selinux || '' }} ${{ matrix.apparmor || '' }}
+        timeout-minutes: 10

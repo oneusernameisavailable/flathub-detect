@@ -1,0 +1,174 @@
+{
+  "pipeline": "Adjudicate",
+  "timestamp": "2026-09-24T20:50:00Z",
+  "verdict": "REVISE",
+  "confidence": 0.87,
+  "inputHash": "sha256:fx-flathub-detect-sh-20260924",
+  "inputSummary": "Flathub repository enabled-detection library",
+  "trigger": "new-matter",
+  "attackReport": {
+    "agent": "IN-3",
+    "findings": [
+      {
+        "claim": 5,
+        "severity": "CRITICAL",
+        "description": "Fallback trigger logic inverted: condition counts successful queries (normal_answered) not failed ones. If system scope answers but user scope fails (permission/timeout), config fallback skipped entirely — documented as 'all remote-list calls fail' but implements 'NO remote-list calls succeed'.",
+        "evidence": "fx-flathub-detect.sh:701",
+        "counterexample": "System scope returns no flathub (rc=0), user scope fails with permission denied → normal_answered=1 → fallback SKIPPED → user scope undetected even if flathub enabled in ~/.local/share/flatpak/repo/config",
+        "status": "NEW"
+      },
+      {
+        "claim": 19,
+        "severity": "CRITICAL",
+        "description": "State enum contract violation: flathub_state documents 5 values (enabled|disabled|not-configured|unknown|flatpak-missing) but code at line 752 emits 'unreachable' when FLATHUB_PROBE_REACHABILITY=1 and remote is network-unreachable. Consumers with exhaustive case statements will mishandle this sixth state.",
+        "evidence": "fx-flathub-detect.sh:752, 920",
+        "counterexample": "Consumer code: case $(flathub_state) in enabled) ...;; unreachable) ...;; esac → unreachable hits default branch",
+        "status": "NEW"
+      },
+      {
+        "claim": 8,
+        "severity": "CRITICAL",
+        "description": "TOCTOU mitigation overclaim: 'eliminates symlink races' is technically false — only narrows the window. Mitigation relies on /proc/self/fd (Linux-only) but binary/config allowlists include macOS Homebrew paths. On macOS/BSD, _flathub_fd_path fails silently, degrading mitigation on claimed-supported platforms.",
+        "evidence": "fx-flathub-detect.sh:385-390, 462-532, 256-259, 369-373",
+        "counterexample": "macOS flatpak at /opt/homebrew/bin/flatpak passes allowlist but TOCTOU check returns 1 → security mitigation silently absent",
+        "status": "NEW"
+      },
+      {
+        "claim": 21,
+        "severity": "CRITICAL",
+        "description": "Binary allowlist brittle: hardcodes 13 path patterns; misses Alpine (/usr/bin/flatpak), Void, Gentoo, distrobox/toolbx container paths, Steam Deck (/usr/bin/flatpak read-only), ChromeOS (/mnt/stateful_partition), Flatpak-bundled runtimes. SHA-256 escape hatch gated behind FLATPAK_TEST_MODE=1 — unavailable in production.",
+        "evidence": "fx-flathub-detect.sh:247-258, 261-286",
+        "counterexample": "Steam Deck (Jupiter) flatpak at /usr/bin/flatpak → not in allowlist (misses /usr/bin/flatpak pattern which only allows /usr/lib/flatpak/flatpak) → validation fails → falls to config files which also miss NixOS paths",
+        "status": "NEW"
+      },
+      {
+        "claim": 9,
+        "severity": "HIGH",
+        "description": "Caching overstated: _FLATHUB_DETECTED only checked in accessor functions (_flathub_ensure), not in flathub_detect() which explicitly re-runs fresh every call. Negative results from transient failures cached permanently via _FLATHUB_DETECTED=1, creating persistent false negatives.",
+        "evidence": "fx-flathub-detect.sh:582, 788, 816-824",
+        "counterexample": "flatpak remote-list times out once → flathub_detect returns 1 (not enabled) → _FLATHUB_DETECTED=1 → all subsequent accessor calls return cached 'not enabled' even after network recovers",
+        "status": "NEW"
+      },
+      {
+        "claim": 4,
+        "severity": "HIGH",
+        "description": "Detection scope explicitly limited: library documents (lines 96-99) that remotes in additional flatpak installations (distro-defined third --installation) are out of scope. Fedora Silverblue, Endless OS, Steam Deck use custom --installation paths that this code silently misses.",
+        "evidence": "fx-flathub-detect.sh:96-99",
+        "counterexample": "Fedora Silverblue with third installation via /etc/flatpak/installations.d/extra.conf → flathub enabled there but remote-list --system/--user doesn't query it → reported as not-configured",
+        "status": "RECURRENCE"
+      },
+      {
+        "claim": 7,
+        "severity": "HIGH",
+        "description": "Binary allowlist contains broken tilde pattern: `~/.local/bin/flatpak)` in case statement — tilde NOT expanded in bash case patterns (per bash manual). Legitimate flatpak installations in ~/.local/bin rejected, forcing fallback to config probing or test-mode SHA256.",
+        "evidence": "fx-flathub-detect.sh:256",
+        "counterexample": "type -P flatpak returns /home/user/.local/bin/flatpak → case pattern matches literal '~/.local/bin/flatpak' not expanded path → validation fails",
+        "status": "NEW"
+      },
+      {
+        "claim": 23,
+        "severity": "HIGH",
+        "description": "Source guard kills shell in eval/bash -c contexts: `return 0 2>/dev/null || exit 0` — when sourced in `bash -c '. fx-flathub-detect.sh'`, return fails (not in function), exit 0 executes and terminates the shell.",
+        "evidence": "fx-flathub-detect.sh:105-111",
+        "counterexample": "bash -c '. /path/to/fx-flathub-detect.sh; flathub_enabled' → shell exits immediately, never reaches flathub_enabled",
+        "status": "NEW"
+      },
+      {
+        "claim": 1,
+        "severity": "LOW",
+        "description": "type -P usage for binary lookup is correct defensive practice — avoids aliases/functions, searches PATH only.",
+        "evidence": "fx-flathub-detect.sh:603",
+        "counterexample": "None — this claim holds",
+        "status": "FIXED"
+      },
+      {
+        "claim": 2,
+        "severity": "LOW",
+        "description": "Detection ladder architecture (binary → remote-list → config fallback) is sound — delegates to authoritative source first, degrades gracefully.",
+        "evidence": "fx-flathub-detect.sh:598-704",
+        "counterexample": "None — this claim holds",
+        "status": "FIXED"
+      },
+      {
+        "claim": 10,
+        "severity": "LOW",
+        "description": "Cache integrity verification with content hashes (SHA-256 via sha256sum, djb2 fallback) detects external state drift on config files and binary.",
+        "evidence": "fx-flathub-detect.sh:833-870",
+        "counterexample": "None — this claim holds",
+        "status": "FIXED"
+      }
+    ],
+    "steelman": [
+      "TOCTOU mitigation via fd-based atomic reads with dual validation (original + canonical paths) is genuinely sophisticated — reference-grade for shell libraries",
+      "type -P for flatpak binary lookup is correct defensive practice, avoids alias/function resolution",
+      "Detection ladder architecture (binary → remote-list → config fallback) is architecturally sound and distro-agnostic by design",
+      "Cache integrity verification with content hashes (SHA-256) detects external state drift on config files and binary",
+      "Debug redaction covers major sensitive path patterns (home directories, nix store, homebrew)",
+      "Scope normalization correctly handles space-joined lists and maps to stable vocabulary (system|user|both|empty)",
+      "Config parser correctly handles case-insensitive enabled=false values and fails safe to disabled for unrecognized values",
+      "Double-source guard and direct-execution rejection are solid"
+    ],
+    "counterArgument": [
+      "The CRITICAL flaw in Claim 5: fallback trigger inversion means the safety net fails exactly when one scope is misbehaving — the most common real-world failure mode",
+      "Claim 19's enum mismatch breaks consumer exhaustiveness guarantees — a direct API contract violation",
+      "Claim 8's overclaim creates false confidence; /proc/self/fd dependency makes mitigation platform-inconsistent with claimed macOS support",
+      "Claim 21's allowlist is a maintenance trap: each new distro requires code patch; test-mode escape hatch admits incompleteness",
+      "Claim 9's permanent negative caching turns transient failures into persistent false negatives — unreliable in flaky environments",
+      "Claim 23's source guard can kill the caller's shell in standard sourcing contexts (bash -c, eval)",
+      "Claim 7's broken tilde pattern silently rejects valid ~/.local/bin installations"
+    ]
+  },
+  "councilVerdict": {
+    "agent": "Council-2",
+    "votes": {
+      "A": 1,
+      "B": 1,
+      "C": -1,
+      "D": 1,
+      "E": 1
+    },
+    "rationale": {
+      "A": "Multiple critical security-relevant defects: logic inversion in fallback trigger (Claim 5) can cause silent detection failures; TOCTOU mitigation overclaim (Claim 8) misrepresents security posture; state enum mismatch (Claim 19) breaks consumer contract; permanent negative caching (Claim 9) creates persistent false negatives from transient failures. Architecture is sound but implementation has exploitable gaps.",
+      "B": "Four convergent critical defects invalidate production readiness: (1) enum/code mismatch emits undocumented 'unreachable' state breaking consumer exhaustiveness, (2) fallback trigger logic inverted — counts successes not failures causing silent fallback skip on partial permission errors, (3) TOCTOU mitigation claims Linux-only /proc/self/fd while allowlist includes macOS paths creating silent degradation, (4) binary allowlist hardcodes 13 patterns missing Alpine, Void, Gentoo, Steam Deck, ChromeOS with SHA-256 escape hatch gated behind test-only flag.",
+      "C": "The library has fundamental reliability flaws: inverted fallback logic (Claim 5) means config fallback fails in common permission-denied scenarios; platform support claims (macOS, distro coverage) don't match implementation reality (Claim 8, 21); contract violation with undocumented 'unreachable' state (Claim 19) breaks consumer case statements; permanent caching of transient failures (Claim 9) creates persistent false negatives. These aren't patchable bugs — they require architectural reconsideration.",
+      "D": "Four convergent critical weaknesses violate specification compliance: Claim 19's enum mismatch breaks consumer exhaustiveness; Claim 5's inverted fallback logic inverts the documented failure ladder; Claim 8's TOCTOU claim overstates Linux-specific mitigation as cross-platform; Claim 21's brittle allowlist excludes major distributions without production escape hatch. Architecture is sound (Steelman confirms ladder design, cache integrity, binary lookup) but these are correctness blockers requiring fixes before production use.",
+      "E": "Four convergent critical weaknesses violate audit-readiness: (1) API contract breach — enum missing 'unreachable' state emitted at runtime (Claim 19); (2) Logic inversion in fallback trigger breaks fail-safe behavior (Claim 5); (3) False security claim — TOCTOU 'elimination' overstated with platform mismatch (Claim 8); (4) Deployment brittleness — binary allowlist misses major distros, escape hatch test-gated (Claim 21). These require fixes before production deployment."
+    },
+    "verdict": "REVISE",
+    "confidence": 0.87
+  },
+  "impactReport": {
+    "affectedVerdicts": [],
+    "recommendations": [
+      "Fix fallback trigger: change condition to check for failed scopes, not successful ones",
+      "Add 'unreachable' to documented flathub_state enum or remove unreachable state",
+      "Either make TOCTOU mitigation cross-platform (remove /proc dependency) or restrict allowlist to Linux",
+      "Replace hardcoded binary allowlist with dynamic discovery + SHA-256 verification for production",
+      "Make caching validate detection success before caching negative results",
+      "Fix tilde pattern in allowlist to use expanded $HOME path",
+      "Replace source guard with `(return 0 2>/dev/null) || exit 0` subshell pattern",
+      "Add support for custom --installation directories via flatpak --installation="
+    ]
+  },
+  "deltaFromBaseline": [
+    "claim-5 NEW: Fallback trigger logic inverted (was RECURRENCE in prior attack_report.json)",
+    "claim-19 NEW: State enum missing 'unreachable' (was present in prior attack_report.json as claim 19)",
+    "claim-8 RECURRENCE: TOCTOU overclaim (was present in prior attack_report.json as claims 12, 16)",
+    "claim-21 RECURRENCE: Binary allowlist brittle (was present in prior attack_report.json as claim 11)",
+    "claim-9 NEW: Caching overstated - negative results cached permanently",
+    "claim-7 NEW: Binary allowlist broken tilde pattern",
+    "claim-23 NEW: Source guard kills shell in bash -c/eval contexts"
+  ],
+  "escalationTriggered": false,
+  "ledgerEntry": {
+    "timestamp": "2026-09-24T20:50:00Z",
+    "inputHash": "sha256:fx-flathub-detect-sh-20260924",
+    "inputSummary": "Flathub repository enabled-detection library review",
+    "pipeline": "Adjudicate",
+    "verdict": "REVISE",
+    "confidence": 0.87,
+    "trigger": "new-matter",
+    "supersedes": null,
+    "cascadeStatus": "none"
+  }
+}

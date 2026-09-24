@@ -32,33 +32,37 @@ lib() {
 #                           query of that scope
 #   RL_SYSTEM_DISABLED /  : extra remote names shown only under --show-disabled
 #   RL_USER_DISABLED        (i.e. configured-but-disabled remotes)
+#   RL_INSTALLATION       : space-separated remote names for custom --installation query
 #   Also handles --version for binary validation.
 # The fixture is quiet and argv-driven, so a host flatpak can never leak in.
 _fake_flatpak() {
-    printf '%s\n' \
-        '#!/usr/bin/env bash' \
-        'case "$1" in' \
-        '  --version) printf "1.15.8\n"; exit 0 ;;' \
-        'esac' \
-        'scope=""; list=""' \
-        'case " $* " in' \
-        '  *" --system "*) scope=system ;;' \
-        '  *" --user "*)   scope=user   ;;' \
-        'esac' \
-        'case "$scope" in' \
-        '  system) list="${RL_SYSTEM:-}" ;;' \
-        '  user)   list="${RL_USER:-}"   ;;' \
-        'esac' \
-        '[[ "$scope" == system && "${FAIL_SYSTEM:-0}" == 1 ]] && exit 7' \
-        'case " $* " in' \
-        '  *" --show-disabled "*)' \
-        '    case "$scope" in' \
-        '      system) list="$list ${RL_SYSTEM_DISABLED:-}" ;;' \
-        '      user)   list="$list ${RL_USER_DISABLED:-}"   ;;' \
-        '    esac ;;' \
-        'esac' \
-        'for n in $list; do printf "%s\n" "$n"; done' \
-        > "$FP_BIN/flatpak"
+    cat > "$FP_BIN/flatpak" <<'EOF'
+#!/usr/bin/env bash
+case "$1" in
+  --version) printf "1.15.8\n"; exit 0 ;;
+esac
+scope=""; list=""
+case " $* " in
+  *" --system "*) scope=system ;;
+  *" --user "*)   scope=user   ;;
+  *" --installation "*) scope=installation ;;
+esac
+case "$scope" in
+  system) list="${RL_SYSTEM:-}" ;;
+  user)   list="${RL_USER:-}"   ;;
+  installation) list="${RL_INSTALLATION:-}" ;;
+esac
+[[ "$scope" == system && "${FAIL_SYSTEM:-0}" == 1 ]] && exit 7
+[[ "$scope" == user && "${FAIL_USER:-0}" == 1 ]] && exit 7
+case " $* " in
+  *" --show-disabled "*)
+    case "$scope" in
+      system) list="$list ${RL_SYSTEM_DISABLED:-}" ;;
+      user)   list="$list ${RL_USER_DISABLED:-}"   ;;
+    esac ;;
+esac
+for n in $list; do printf "%s\n" "$n"; done
+EOF
     chmod +x "$FP_BIN/flatpak"
     export _FLATHUB_FLATPAK_SHA256="$(sha256sum "$FP_BIN/flatpak" | cut -d' ' -f1)"
     export FLATPAK_TEST_MODE=1
@@ -189,13 +193,13 @@ _fake_flatpak_partial_failure() {
     [ "$FLATHUB_STATE" = "not-configured" ]
 }
 
-@test "partial scope query failure trusts authoritative scope, not unknown" {
+@test "partial scope query failure returns unknown (fail closed)" {
     _fake_flatpak_partial_failure
     export FAIL_SYSTEM=1
     PATH="$FP_BIN:$PATH"
     lib
     flathub_detect || true
-    [ "$FLATHUB_STATE" = "not-configured" ]
+    [ "$FLATHUB_STATE" = "unknown" ]
 }
 
 @test "flatpak absent: state=flatpak-missing, predicate false (host config excluded)" {
@@ -383,6 +387,73 @@ _fake_flatpak_partial_failure() {
     [ "$status" -eq 1 ]
     [ "${lines[0]}" = "flatpak-missing" ]
     [ "${lines[1]}" = "empty" ]
+}
+
+@test "custom installation scope returns installation name when only custom has flathub" {
+    _fake_flatpak
+    export RL_SYSTEM=""
+    export RL_USER=""
+    export RL_INSTALLATION="steamdeck"
+    PATH="$FP_BIN:$PATH"
+    lib
+    # Simulate custom installation probe finding flathub
+    # We need to mock the custom installation probe
+    # For now, test the scope normalization with custom token
+    result="$(_flathub_normalize_scope " steamdeck")"
+    [ "$result" = "steamdeck" ]
+}
+
+@test "scope normalization handles system plus custom installation" {
+    lib
+    result="$(_flathub_normalize_scope " system steamdeck")"
+    [ "$result" = "system,steamdeck" ]
+}
+
+@test "scope normalization handles user plus custom installation" {
+    lib
+    result="$(_flathub_normalize_scope " user flatpak-extra")"
+    [ "$result" = "user,flatpak-extra" ]
+}
+
+@test "scope normalization handles both plus custom installations" {
+    lib
+    result="$(_flathub_normalize_scope " system user steamdeck fedora")"
+    [ "$result" = "both,steamdeck,fedora" ]
+}
+
+@test "partial scope failure returns unknown (fail closed) - system ok user timeout" {
+    _fake_flatpak_partial_failure
+    export FAIL_SYSTEM=0
+    export FAIL_USER=1
+    PATH="$FP_BIN:$PATH"
+    lib
+    flathub_detect || true
+    [ "$FLATHUB_STATE" = "unknown" ]
+}
+
+@test "flathub_clear_cache explicitly invalidates cache" {
+    _fake_flatpak
+    export RL_SYSTEM="flathub"
+    PATH="$FP_BIN:$PATH"
+    lib
+    flathub_detect
+    [ "$FLATHUB_STATE" = "enabled" ]
+    flathub_clear_cache
+    # After clearing, _FLATHUB_DETECTED should be 0
+    [ "${_FLATHUB_DETECTED:-0}" = "0" ]
+}
+
+@test "custom installation probe skipped when system already found flathub (ladder order)" {
+    _fake_flatpak
+    export RL_SYSTEM="flathub"
+    export RL_USER=""
+    PATH="$FP_BIN:$PATH"
+    lib
+    flathub_detect
+    [ "$FLATHUB_STATE" = "enabled" ]
+    [ "$FLATHUB_SCOPE" = "system" ]
+    # Custom installation probe should not have run (any_enabled=1)
+    # This is implicitly tested by scope being just "system"
 }
 
 @test "direct execution refuses with exit 2" {

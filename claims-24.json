@@ -1,0 +1,29 @@
+{
+  "matter": "fx-flathub-detect.sh — a bash library for detecting whether the Flathub remote is enabled in a Flatpak installation, with multi-scope (system/user) detection, lazy caching, and config file fallback.",
+  "claims": [
+    "The library correctly uses type -P for flatpak binary lookup, avoiding alias/function resolution",
+    "The detection ladder (binary → remote-list → config fallback) is architecturally sound",
+    "Scope semantics (system|user|both|empty) correctly represent where Flathub is enabled",
+    "The command path via flatpak remote-list is distro-agnostic and authoritative",
+    "Config file fallback only triggers when binary is absent or all remote-list calls fail",
+    "The config parser correctly handles case-insensitive enabled=false values",
+    "Binary validation via allowlist prevents PATH injection attacks",
+    "TOCTOU mitigation with dual validation (original + canonical) eliminates symlink races",
+    "Lazy caching via _FLATHUB_DETECTED flag runs detection at most once per shell",
+    "Cache integrity verification with content hashes detects external state drift",
+    "All globals are always written, making the library safe for set -u callers",
+    "Double-source guard prevents re-initialization side effects",
+    "Direct execution guard correctly exits with code 2 and usage hint",
+    "Debug redaction covers major sensitive path patterns (home, nix store, homebrew)",
+    "State machine correctly prioritizes ENABLED over UNKNOWN when flathub found in any scope",
+    "Configured-but-disabled detection via --show-disabled works correctly per scope",
+    "Scope normalization handles space-joined lists and maps to stable vocabulary",
+    "flathub_enabled predicate correctly returns 0 iff enabled, safe for if guards",
+    "flathub_state echoes correct enum: enabled|disabled|not-configured|unknown|flatpak-missing",
+    "flathub_scope echoes correct enum: system|user|both|empty",
+    "Binary allowlist covers all common distro paths including NixOS and Homebrew",
+    "Config path allowlist correctly validates freedesktop-standard paths",
+    "Source guard return 0 2>/dev/null || exit 0 handles non-standard sourcing contexts",
+    "flathub_scope_enabled correctly distinguishes not-enabled from error conditions"
+  ]
+}

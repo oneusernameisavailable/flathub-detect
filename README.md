@@ -28,8 +28,8 @@ fi
 | ----------------- | ----------------------------- | --------------------------------------------- |
 | `flathub_detect`  | (nothing)                     | `0` enabled, `1` not enabled (globals still written) |
 | `flathub_enabled` | (nothing) — use as guard      | `0` iff enabled (lazy)                        |
-| `flathub_state`   | `enabled` / `disabled` / `not-configured` / `unknown` / `flatpak-missing` | `0` always |
-| `flathub_scope`   | `system` / `user` / `both` / empty | `0` always                                |
+| `flathub_state`   | `enabled` / `disabled` / `not-configured` / `unknown` / `flatpak-missing` / `unreachable` | `0` always |
+| `flathub_scope`   | `system` / `user` / `both` / empty / `<installation>` / `<comma-separated>` | `0` always |
 
 Globals (raw storage, not the stable interface): `FLATHUB_ENABLED` (1/0),
 `FLATHUB_CONFIGURED` (1/0 = remote present at all, enabled or not),
@@ -46,16 +46,18 @@ Exit codes outside the API:
 ## Semantics — what "enabled" means
 
 "Enabled" = the Flathub remote is enabled in **any** installation (system **or**
-user). `flathub_scope` narrows it down.
+user **or** custom `--installation`). `flathub_scope` narrows it down.
 
 | Condition                                                | Result                                  |
 | -------------------------------------------------------- | --------------------------------------- |
 | `flatpak remote-list --system/--user --columns=name` lists exact `flathub` | enabled (`FLATHUB_ENABLED=1`, `FLATHUB_STATE=enabled`) |
+| `flatpak remote-list --installation=NAME --columns=name` lists exact `flathub` | enabled (`FLATHUB_ENABLED=1`, `FLATHUB_STATE=enabled`) |
 | listed only under `--show-disabled`                      | configured but disabled (`FLATHUB_CONFIGURED=1`, `FLATHUB_STATE=disabled`) |
 | remote-list answers, no `flathub` anywhere               | not configured (`FLATHUB_STATE=not-configured`) |
 | any required query fails or fallback is malformed       | unknown (fail closed) |
 | no `flatpak` on `PATH` and no repo config found          | `FLATHUB_STATE=flatpak-missing`          |
 | `flatpak` absent/unresponsive, but repo config has `[remote "flathub"]` (no `enabled=false`) | enabled via config fallback |
+| `FLATHUB_PROBE_REACHABILITY=1` and remote configured but network unreachable | `FLATHUB_STATE=unreachable` |
 
 The predicate uses `type -P flatpak` (a bash builtin) for the binary-presence
 gate, exactly like the sibling `flatpak-detect.sh`. Remote state is read from
@@ -77,10 +79,11 @@ Every external command is `||`-guarded and the config parser is pure bash (no
   Mint/Pop!_OS and for both pre-enabled and manually-added flathub.
 - System and user scopes are both checked, so both `sudo flatpak install` (root,
   system) and plain-user installs are covered.
+- Custom installations defined in `/etc/flatpak/installations.d/*.conf` are
+  automatically probed (e.g., Fedora Silverblue, Steam Deck).
 - The config-file fallback covers the freedesktop-standard paths only
   (`/var/lib/flatpak/repo/config`, `${XDG_DATA_HOME:=$HOME/.local/share}/flatpak/repo/config`).
-- **Limitations:** remotes in *additional* flatpak installations (a distro-defined
-  third `--installation`) and admin-hidden remotes are intentionally out of scope.
+- **Limitations:** admin-hidden remotes are intentionally out of scope.
 
 ---
 
