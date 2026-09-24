@@ -212,6 +212,8 @@ jobs:
           export FLATPAK_TEST_MODE=1
           export SCRIPT_DEBUG=1
           export SCENARIO="${SCENARIO}"
+          # Install flatpak on macOS for testing
+          brew install flatpak
           chmod +x ${{ github.workspace }}/test/ci/validate-detection.sh
           ${{ github.workspace }}/test/ci/validate-detection.sh "${SCENARIO}"
 
