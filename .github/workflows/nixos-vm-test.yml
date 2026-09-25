@@ -25,7 +25,7 @@ jobs:
 
       - name: Build NixOS VM
         run: |
-          nix build .#flathub-test-vm -L --out-link ./nixos-vm
+          nix build .#nixosConfigurations.flathub-test-vm.config.system.build.vm -L --out-link ./nixos-vm
           ls -la ./nixos-vm/
 
       - name: Run NixOS VM and Test
