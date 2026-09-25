@@ -23,9 +23,9 @@
     };
   };
 
-  # Root user with password
+  # Root user with password (hashed)
   users.users.root = {
-    password = "test";
+    hashedPassword = "$6$test$nHvMDP1NOBaQnjJ9eVVwa1hMnpnbgS89e7nBrD3zEHW1vyx7eZZkwEVw8TgJ6.6BpFHnFSlgLmV4aHU4OvjlG.";
     openssh.authorizedKeys.keys = [];
   };
 
