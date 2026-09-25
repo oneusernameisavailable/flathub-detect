@@ -23,8 +23,18 @@ jobs:
           sudo udevadm control --reload-rules
           sudo udevadm trigger --name-match=kvm
 
+      - name: Generate SSH key
+        run: |
+          ssh-keygen -t ed25519 -f ./ssh_key -N ""
+          echo "PRIVATE_KEY<<EOF" >> $GITHUB_ENV
+          cat ./ssh_key >> $GITHUB_ENV
+          echo "EOF" >> $GITHUB_ENV
+          echo "PUBLIC_KEY=$(cat ./ssh_key.pub)" >> $GITHUB_ENV
+
       - name: Build NixOS VM
         run: |
+          # Update nixos-test-vm.nix with the generated public key
+          sed -i "s|REPLACE_SSH_KEY|$PUBLIC_KEY|" nixos-test-vm.nix
           nix build .#nixosConfigurations.flathub-test-vm.config.system.build.vm -L --out-link ./nixos-vm
           ls -la ./nixos-vm/
           ls -la ./nixos-vm/bin/
@@ -40,9 +50,9 @@ jobs:
           echo "Waiting for VM to boot..."
           sleep 30
           
-          # Test SSH connectivity
+          # Test SSH connectivity using SSH key
           for i in {1..10}; do
-            if ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=5 root@localhost -p 2222 "echo 'SSH ready'" 2>/dev/null; then
+            if ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=5 -o IdentitiesOnly=yes -i ./ssh_key root@localhost -p 2222 "echo 'SSH ready'" 2>/dev/null; then
               echo "SSH ready!"
               break
             fi
@@ -51,7 +61,7 @@ jobs:
           done
           
           # Run validation script in VM
-          ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -p 2222 root@localhost "
+          ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -p 2222 -o IdentitiesOnly=yes -i ./ssh_key root@localhost "
             source /src/fx-flathub-detect.sh
             flathub_detect
             echo 'STATE:' \$FLATHUB_STATE

@@ -23,10 +23,11 @@
     };
   };
 
-  # Root user with password (hashed)
+  # Root user with SSH key authentication (replaced by workflow)
   users.users.root = {
-    hashedPassword = "$6$test$nHvMDP1NOBaQnjJ9eVVwa1hMnpnbgS89e7nBrD3zEHW1vyx7eZZkwEVw8TgJ6.6BpFHnFSlgLmV4aHU4OvjlG.";
-    openssh.authorizedKeys.keys = [];
+    openssh.authorizedKeys.keys = [
+      "REPLACE_SSH_KEY"
+    ];
   };
 
   # Flatpak with custom installation
