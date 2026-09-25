@@ -23,7 +23,7 @@ jobs:
           sudo udevadm control --reload-rules
           sudo udevadm trigger --name-match=kvm
 
-- name: Build NixOS VM
+      - name: Build NixOS VM
         run: |
           nix build .#flathub-test-vm -L --out-link ./nixos-vm
           ls -la ./nixos-vm/
