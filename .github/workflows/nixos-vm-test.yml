@@ -31,11 +31,9 @@ jobs:
           echo "EOF" >> $GITHUB_ENV
           echo "PUBLIC_KEY=$(cat ./ssh_key.pub)" >> $GITHUB_ENV
 
-      - name: Build NixOS VM
+      - name: Prepare script injection
         run: |
-          # Update nixos-test-vm.nix with the generated public key
-          sed -i "s|REPLACE_SSH_KEY|$PUBLIC_KEY|" nixos-test-vm.nix
-          # Inject fx-flathub-detect.sh content into VM using Python (avoids sed issues)
+          # Escape script content for Nix string using Python
           python3 << 'PYEOF'
 import sys
 with open('fx-flathub-detect.sh', 'r') as f:
@@ -48,6 +46,11 @@ nix_content = nix_content.replace('SCRIPT_CONTENT_PLACEHOLDER', content)
 with open('nixos-test-vm.nix', 'w') as f:
     f.write(nix_content)
 PYEOF
+          # Update nixos-test-vm.nix with the generated public key
+          sed -i "s|REPLACE_SSH_KEY|$PUBLIC_KEY|" nixos-test-vm.nix
+
+      - name: Build NixOS VM
+        run: |
           nix build .#nixosConfigurations.flathub-test-vm.config.system.build.vm -L --out-link ./nixos-vm
           ls -la ./nixos-vm/
           ls -la ./nixos-vm/bin/
