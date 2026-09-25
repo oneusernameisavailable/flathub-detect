@@ -1,8 +1,35 @@
-{ config, pkgs, lib, ... }:
-
+{ config, lib, pkgs, options, ... }:
 {
-  # NixOS VM configuration for testing flathub-detect with custom installation
-  # qemu-vm module imported via flake.nix using nixosModules
+  # Declare virtualisation options (normally provided by qemu-vm module)
+  options.virtualisation = {
+    memorySize = lib.mkOption {
+      type = lib.types.ints.positive;
+      default = 1024;
+      description = "Memory size in megabytes";
+    };
+    cores = lib.mkOption {
+      type = lib.types.ints.positive;
+      default = 1;
+      description = "Number of CPU cores";
+    };
+    diskSize = lib.mkOption {
+      type = lib.types.either (lib.types.enum [ "auto" ]) lib.types.ints.positive;
+      default = 1024;
+      description = "Disk size in megabytes";
+    };
+    vmVariant = lib.mkOption {
+      type = lib.types.attrs;
+      default = { };
+      description = "VM variant configuration";
+    };
+    qemu = {
+      options = lib.mkOption {
+        type = lib.types.listOf lib.types.str;
+        default = [ ];
+        description = "QEMU options";
+      };
+    };
+  };
 
   # System
   boot.loader.grub.enable = false;
@@ -30,7 +57,7 @@
     openssh.authorizedKeys.keys = [];
   };
 
-  # Flatpak with custom installation (manual setup - extraInstallations option not available in nixos-unstable)
+  # Flatpak with custom installation
   services.flatpak.enable = true;
   xdg.portal.enable = true;
   xdg.portal.extraPortals = with pkgs; [ xdg-desktop-portal-gtk ];
@@ -63,22 +90,15 @@
     };
   };
 
-  # VM image (qemu-vm module options)
+  # VM image settings
   virtualisation.vmVariant = "qemu";
   virtualisation.memorySize = 1024;
   virtualisation.cores = 2;
   virtualisation.diskSize = 8192;
-
-  # Override qemu-vm's system.build.vm to create run-vm.sh in output root
-  system.build.vm = lib.mkForce ({ config, pkgs, ... }: let
-    toplevel = config.system.build.toplevel;
-  in pkgs.runCommandLocal "nixos-vm" {
-    buildInputs = [ pkgs.qemu ];
-    toplevel = toplevel;
-  } ''
-    mkdir -p $out
-    ${toplevel}/bin/run-nixos-vm -m 1024 -c 2 -snapshot -nographic > $out/run-vm.sh
-    chmod +x $out/run-vm.sh
-  ''
-  );
+  virtualisation.qemu.options = [
+    "-m 1024"
+    "-smp 2"
+    "-nographic"
+    "-serial stdio"
+  ];
 }
