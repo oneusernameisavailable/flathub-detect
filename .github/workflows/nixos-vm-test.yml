@@ -25,14 +25,14 @@ jobs:
 
       - name: Build NixOS VM
         run: |
-          nix build .#flathub-test-vm -L --out-link ./nixos-vm
+          nix build .#nixosConfigurations.flathub-test-vm.config.system.build.vm -L --out-link ./nixos-vm
           ls -la ./nixos-vm/
-          find ./nixos-vm -name "run-*" -type f
+          ls -la ./nixos-vm/system/bin/
 
       - name: Run NixOS VM and Test
         run: |
-          # Start VM in background (package output creates run-vm.sh in output root)
-          ./nixos-vm/run-vm.sh &
+          # Start VM in background using toplevel's run-nixos-vm script
+          ./nixos-vm/system/bin/run-nixos-vm -m 1024 -c 2 -snapshot -nographic &
           VM_PID=$!
           
           # Wait for VM to boot
@@ -41,7 +41,7 @@ jobs:
           
           # Test SSH connectivity
           for i in {1..10}; do
-            if ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=5 -o StrictHostKeyChecking=no root@localhost -p 2222 "echo 'SSH ready'" 2>/dev/null; then
+            if ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=5 root@localhost -p 2222 "echo 'SSH ready'" 2>/dev/null; then
               echo "SSH ready!"
               break
             fi
