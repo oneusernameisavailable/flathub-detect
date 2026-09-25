@@ -45,5 +45,8 @@
           }
         ];
       };
+
+      # Provide the VM as a package
+      packages.x86_64-linux.flathub-test-vm = self.nixosConfigurations.flathub-test-vm.config.system.build.vm;
     };
 }
