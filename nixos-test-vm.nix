@@ -102,5 +102,17 @@
       "-nographic"
       "-serial stdio"
     ];
+
+    # Custom VM build output with run-vm.sh in root
+    system.build.vm = { config, pkgs, ... }: let
+      toplevel = config.system.build.toplevel;
+    in pkgs.runCommandLocal "nixos-vm" {
+      buildInputs = [ pkgs.qemu ];
+      toplevel = toplevel;
+    } ''
+      mkdir -p $out
+      ${toplevel}/bin/run-nixos-vm -m 1024 -c 2 -snapshot -nographic > $out/run-vm.sh
+      chmod +x $out/run-vm.sh
+    '';
   };
 }
