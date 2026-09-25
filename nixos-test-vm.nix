@@ -30,15 +30,8 @@
     openssh.authorizedKeys.keys = [];
   };
 
-  # Flatpak with custom installation
-  services.flatpak = {
-    enable = true;
-    extraInstallations = {
-      extra = {
-        path = "/var/lib/flatpak/extra";
-      };
-    };
-  };
+  # Flatpak with custom installation (manual setup - extraInstallations option not available in nixos-unstable)
+  services.flatpak.enable = true;
 
   # System packages
   environment.systemPackages = with pkgs; [
@@ -57,7 +50,7 @@
     serviceConfig = {
       Type = "oneshot";
       RemainAfterExit = true;
-      ExecStart = "/bin/bash -c 'flatpak --installation=extra remote-add --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo'";
+      ExecStart = "/bin/bash -c 'mkdir -p /var/lib/flatpak/extra && flatpak --installation=extra remote-add --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo'";
     };
   };
 
