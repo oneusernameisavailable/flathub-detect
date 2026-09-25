@@ -10,7 +10,7 @@
       pkgs = import nixpkgs { config = { allowUnfree = true; }; system = "x86_64-linux"; };
     in
     {
-      packages.x86_64-linux.flathub-test-vm = nixpkgs.lib.nixosSystem {
+      packages.x86_64-linux.flathub-test-vm = (nixpkgs.lib.nixosSystem {
         system = "x86_64-linux";
         modules = [
           {
@@ -44,7 +44,7 @@
             '';
           }
         ];
-      };
+      }).config.system.build.vm;
 
       nixosConfigurations.flathub-test-vm = nixpkgs.lib.nixosSystem {
         system = "x86_64-linux";
