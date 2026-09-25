@@ -35,10 +35,19 @@ jobs:
         run: |
           # Update nixos-test-vm.nix with the generated public key
           sed -i "s|REPLACE_SSH_KEY|$PUBLIC_KEY|" nixos-test-vm.nix
-          # Inject fx-flathub-detect.sh content into VM via tmpfiles
-          # Escape newlines as literal \n for tmpfiles format
-          SCRIPT_CONTENT=$(cat fx-flathub-detect.sh | sed ':a;N;$!ba;s/\n/\\n/g' | sed 's/"/\\"/g')
-          sed -i "s|SCRIPT_CONTENT_PLACEHOLDER|$SCRIPT_CONTENT|" nixos-test-vm.nix
+          # Inject fx-flathub-detect.sh content into VM via tmpfiles using Python
+          python3 -c "
+import sys
+with open('fx-flathub-detect.sh', 'r') as f:
+    content = f.read()
+# Escape for Nix string: escape backslashes, quotes, and newlines
+content = content.replace('\\\\', '\\\\\\\\').replace('\"', '\\\\\"').replace('\n', '\\\\n')
+with open('nixos-test-vm.nix', 'r') as f:
+    nix_content = f.read()
+nix_content = nix_content.replace('SCRIPT_CONTENT_PLACEHOLDER', content)
+with open('nixos-test-vm.nix', 'w') as f:
+    f.write(nix_content)
+"
           nix build .#nixosConfigurations.flathub-test-vm.config.system.build.vm -L --out-link ./nixos-vm
           ls -la ./nixos-vm/
           ls -la ./nixos-vm/bin/
