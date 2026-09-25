@@ -294,10 +294,11 @@ _flathub_validate_binary() {
     fi
     # Verify it's actually flatpak via --version (read-only, benign)
     # Pattern matches semantic version output like "1.15.8", "1.15.8-1", "1.15.8+git.abc123"
+    # Also handles "Flatpak 1.14.10" format
     # Use bash built-in regex to avoid grep dependency
     local version_out
     version_out="$("$bin" --version 2>/dev/null)" || return 1
-    [[ "$version_out" =~ ^[0-9]+\.[0-9]+\.[0-9]+ ]] || return 1
+    [[ "$version_out" =~ ^(Flatpak[[:space:]]+)?[0-9]+\.[0-9]+\.[0-9]+ ]] || return 1
     printf '%s\n' "$bin"
     return 0
 }
