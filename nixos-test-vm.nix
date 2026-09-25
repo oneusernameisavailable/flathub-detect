@@ -2,7 +2,7 @@
 
 {
   # NixOS VM configuration for testing flathub-detect with custom installation
-  imports = [ <nixpkgs/nixos/modules/virtualisation/qemu-vm.nix> ];
+  # qemu-vm module imported via flake.nix using nixosModules
 
   # System
   boot.loader.grub.enable = false;
