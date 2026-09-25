@@ -10,7 +10,6 @@
       pkgs = import nixpkgs { config = { allowUnfree = true; }; };
     in
     {
-      # First define the VM as a package directly
       packages.x86_64-linux.flathub-test-vm = pkgs.lib.nixosSystem {
         system = "x86_64-linux";
         modules = [
