@@ -62,6 +62,9 @@
     };
   };
 
+  # Force headless mode (disable graphics)
+  virtualisation.graphics = false;
+
   # QEMU networking: forward host port 2222 to VM port 22
   virtualisation.qemu.networkingOptions = [
     "-nic user,model=virtio-net-pci,hostfwd=tcp::2222-:22"
