@@ -15,7 +15,7 @@
         modules = [
           {
             imports = [
-              nixpkgs.nixosModules.virtualisation.qemu-vm
+              nixpkgs.nixosModules."virtualisation/qemu-vm"
               ./nixos-test-vm.nix
             ];
 
@@ -51,7 +51,7 @@
         modules = [
           {
             imports = [
-              nixpkgs.nixosModules.virtualisation.qemu-vm
+              nixpkgs.nixosModules."virtualisation/qemu-vm"
               ./nixos-test-vm.nix
             ];
 
