@@ -16,19 +16,6 @@
           (import (nixpkgs + "/nixos/modules/virtualisation/qemu-vm.nix"))
           ./nixos-test-vm.nix
           {
-            virtualisation = {
-              qemu = {
-                enable = true;
-                guestAgent.enable = true;
-                options = [
-                  "-m 1024"
-                  "-smp 2"
-                  "-nographic"
-                  "-serial stdio"
-                ];
-              };
-            };
-
             system.build.vm = { config, pkgs, ... }: let
               toplevel = config.system.build.toplevel;
             in pkgs.runCommandLocal "nixos-vm" {
