@@ -63,22 +63,7 @@
     };
   };
 
-  # QEMU VM settings
-  virtualisation = {
-    qemu = {
-      enable = true;
-      guestAgent.enable = true;
-      options = [
-        "-m 1024"
-        "-smp 2"
-        "-nographic"
-        "-serial stdio"
-        "-drive file=disk.img,format=qcow2,if=virtio"
-      ];
-    };
-  };
-
-  # VM image
+  # VM image (qemu-vm module options)
   virtualisation.vmVariant = "qemu";
   virtualisation.memorySize = 1024;
   virtualisation.cores = 2;
