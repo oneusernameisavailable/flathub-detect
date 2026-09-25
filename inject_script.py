@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Inject script content into nixos-test-vm.nix"""
+"""Inject script content into nixos-test-vm.nix for writeTextFile"""
 
 import sys
 
@@ -14,10 +14,9 @@ def main():
     with open(script_file, 'r') as f:
         content = f.read()
     
-    # Escape for Nix string: escape backslashes, quotes, dollars, and newlines
-    content = content.replace('\\', '\\\\').replace('$', '$$').replace('"', '\\"').replace('\n', '\\n')
-    # Wrap in quotes for Nix string
-    content = f'"{content}"'
+    # For writeTextFile, no escaping needed - raw content is written as-is
+    # Just ensure no NUL bytes
+    content = content.replace('\x00', '')
     
     with open(nix_file, 'r') as f:
         nix_content = f.read()
