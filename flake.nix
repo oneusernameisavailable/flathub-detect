@@ -7,81 +7,43 @@
 
   outputs = { self, nixpkgs }:
     let
-      system = "x86_64-linux";
-      pkgs = import nixpkgs {
-        config = { allowUnfree = true; };
-        inherit system;
-      };
+      pkgs = import nixpkgs { config = { allowUnfree = true; }; system = "x86_64-linux"; };
+      
+      vmModules = [
+        {
+          imports = [
+            <nixpkgs/nixos/modules/virtualisation/qemu-vm.nix>
+            ./nixos-test-vm.nix
+          ];
 
-      vmConfig = {
-        imports = [
-          <nixpkgs/nixos/modules/virtualisation/qemu-vm.nix>
-          ./nixos-test-vm.nix
-        ];
-
-        virtualisation = {
-          qemu = {
-            enable = true;
-            guestAgent.enable = true;
-            options = [
-              "-m 1024"
-              "-smp 2"
-              "-nographic"
-              "-serial stdio"
-            ];
+          virtualisation = {
+            qemu = {
+              enable = true;
+              guestAgent.enable = true;
+              options = [
+                "-m 1024"
+                "-smp 2"
+                "-nographic"
+                "-serial stdio"
+              ];
+            };
           };
-        };
 
-        system.build.vm = { config, pkgs, ... }: let
-          toplevel = config.system.build.toplevel;
-        in pkgs.runCommandLocal "nixos-vm" {
-          buildInputs = [ pkgs.qemu ];
-          toplevel = toplevel;
-        } ''
-          mkdir -p $out
-          ${toplevel}/bin/run-nixos-vm -m 1024 -c 2 -snapshot -nographic > $out/run-vm.sh
-          chmod +x $out/run-vm.sh
-        '';
-      };
+          system.build.vm = { config, pkgs, ... }: let
+            toplevel = config.system.build.toplevel;
+          in pkgs.runCommandLocal "nixos-vm" {
+            buildInputs = [ pkgs.qemu ];
+            toplevel = toplevel;
+          } ''
+            mkdir -p $out
+            ${toplevel}/bin/run-nixos-vm -m 1024 -c 2 -snapshot -nographic > $out/run-vm.sh
+            chmod +x $out/run-vm.sh
+          '';
+        ];
+    };
 
     in {
-      packages.x86_64-linux.flathub-test-vm = nixpkgs.lib.nixosSystem {
-        system = "x86_64-linux";
-        modules = [
-          {
-            imports = [
-              <nixpkgs/nixos/modules/virtualisation/qemu-vm.nix>
-              ./nixos-test-vm.nix
-            ];
-
-            virtualisation = {
-              qemu = {
-                enable = true;
-                guestAgent.enable = true;
-                options = [
-                  "-m 1024"
-                  "-smp 2"
-                  "-nographic"
-                  "-serial stdio"
-                ];
-              };
-            };
-
-            system.build.vm = { config, pkgs, ... }: let
-              toplevel = config.system.build.toplevel;
-            in pkgs.runCommandLocal "nixos-vm" {
-              buildInputs = [ pkgs.qemu ];
-              toplevel = toplevel;
-            } ''
-              mkdir -p $out
-              ${toplevel}/bin/run-nixos-vm -m 1024 -c 2 -snapshot -nographic > $out/run-vm.sh
-              chmod +x $out/run-vm.sh
-            '';
-          }
-        ];
-      };
-
-      nixosConfigurations.flathub-test-vm = pkgs.lib.nixosSystem {
+      packages.x86_64-linux.flathub-test-vm = pkgs.lib.nixosSystem {
         system = "x86_64-linux";
         modules = [
           {
