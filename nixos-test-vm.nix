@@ -56,10 +56,8 @@
 
   # Auto-login for root on serial console
   systemd.services."getty@ttyS0" = {
-    override = {
-      Service = {
-        ExecStart = "/sbin/agetty --autologin root --noclear %I $TERM";
-      };
+    serviceConfig = {
+      ExecStart = "/sbin/agetty --autologin root --noclear %I $TERM";
     };
   };
 
