@@ -33,20 +33,7 @@ jobs:
 
       - name: Inject script content
         run: |
-          # Write Python script to file to avoid YAML quoting issues
-          cat > inject_script.py << 'PYEOF'
-import sys
-with open('fx-flathub-detect.sh', 'r') as f:
-    content = f.read()
-# Escape for Nix string: escape backslashes, quotes, and newlines
-content = content.replace('\\', '\\\\').replace('"', '\\"').replace('\n', '\\n')
-with open('nixos-test-vm.nix', 'r') as f:
-    nix_content = f.read()
-nix_content = nix_content.replace('SCRIPT_CONTENT_PLACEHOLDER', content)
-with open('nixos-test-vm.nix', 'w') as f:
-    f.write(nix_content)
-PYEOF
-          python3 inject_script.py
+          python3 inject_script.py fx-flathub-detect.sh nixos-test-vm.nix
           # Update nixos-test-vm.nix with the generated public key
           sed -i "s|REPLACE_SSH_KEY|$PUBLIC_KEY|" nixos-test-vm.nix
 
