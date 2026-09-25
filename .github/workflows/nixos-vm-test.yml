@@ -30,8 +30,8 @@ jobs:
 
       - name: Run NixOS VM and Test
         run: |
-          # Start VM in background
-          ./result/run-vm.sh &
+          # Start VM in background (qemu-vm creates run-x86_64-linux-vm script)
+          ./nixos-vm/bin/run-x86_64-linux-vm &
           VM_PID=$!
           
           # Wait for VM to boot
