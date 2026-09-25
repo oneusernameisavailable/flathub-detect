@@ -68,4 +68,17 @@
   virtualisation.memorySize = 1024;
   virtualisation.cores = 2;
   virtualisation.diskSize = 8192;
+
+  # Override qemu-vm's system.build.vm to create run-vm.sh in output root
+  system.build.vm = lib.mkForce ({ config, pkgs, ... }: let
+    toplevel = config.system.build.toplevel;
+  in pkgs.runCommandLocal "nixos-vm" {
+    buildInputs = [ pkgs.qemu ];
+    toplevel = toplevel;
+  } ''
+    mkdir -p $out
+    ${toplevel}/bin/run-nixos-vm -m 1024 -c 2 -snapshot -nographic > $out/run-vm.sh
+    chmod +x $out/run-vm.sh
+  '';
+  );
 }
