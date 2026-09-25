@@ -63,6 +63,9 @@ jobs:
           # Run validation script in VM
           ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -p 2222 -o IdentitiesOnly=yes -i ./ssh_key root@localhost "
             bash -l -c '
+              echo \"PATH: \$PATH\"
+              which flatpak || echo \"flatpak not in PATH\"
+              ls -la /run/current-system/sw/bin/flatpak 2>/dev/null || echo \"flatpak not in /run/current-system/sw/bin\"
               source /src/fx-flathub-detect.sh
               flathub_detect
               echo STATE: \$FLATHUB_STATE
