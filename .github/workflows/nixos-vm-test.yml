@@ -35,9 +35,9 @@ jobs:
         run: |
           # Update nixos-test-vm.nix with the generated public key
           sed -i "s|REPLACE_SSH_KEY|$PUBLIC_KEY|" nixos-test-vm.nix
-          # Inject fx-flathub-detect.sh content into VM
-          SCRIPT_CONTENT=$(cat fx-flathub-detect.sh | sed 's/"/\\"/g' | sed ':a;N;$!ba;s/\n/\\n/g')
-          sed -i "s|# Test script content will be injected by workflow|$SCRIPT_CONTENT|" nixos-test-vm.nix
+          # Inject fx-flathub-detect.sh content into VM using base64
+          SCRIPT_B64=$(base64 -w0 fx-flathub-detect.sh)
+          sed -i "s|SCRIPT_B64_PLACEHOLDER|$SCRIPT_B64|" nixos-test-vm.nix
           nix build .#nixosConfigurations.flathub-test-vm.config.system.build.vm -L --out-link ./nixos-vm
           ls -la ./nixos-vm/
           ls -la ./nixos-vm/bin/

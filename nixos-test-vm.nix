@@ -65,7 +65,7 @@
     serviceConfig = {
       Type = "oneshot";
       RemainAfterExit = true;
-      ExecStart = "/bin/bash -c 'mkdir -p /src && cat > /src/fx-flathub-detect.sh << \"EOF\"\n# Test script content will be injected by workflow\nEOF\nchmod +x /src/fx-flathub-detect.sh'";
+      ExecStart = "/bin/bash -c 'mkdir -p /src && echo \"SCRIPT_B64_PLACEHOLDER\" | base64 -d > /src/fx-flathub-detect.sh && chmod +x /src/fx-flathub-detect.sh'";
     };
   };
 
