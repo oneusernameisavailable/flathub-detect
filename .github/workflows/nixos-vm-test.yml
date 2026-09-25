@@ -32,8 +32,8 @@ jobs:
 
       - name: Run NixOS VM and Test
         run: |
-          # Start VM in background (qemu-vm creates bin/run-x86_64-linux-vm in VM derivation output)
-          ./nixos-vm/bin/run-x86_64-linux-vm &
+          # Start VM in background (qemu-vm creates bin/run-<hostname> in VM derivation output)
+          ./nixos-vm/bin/run-flathub-test-vm &
           VM_PID=$!
           
           # Wait for VM to boot
