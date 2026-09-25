@@ -56,9 +56,12 @@
     };
   };
 
-  # Copy fx-flathub-detect.sh to VM for testing via tmpfiles
+  # Copy fx-flathub-detect.sh to VM for testing via environment.etc
+  environment.etc."flathub-detect.sh".text = SCRIPT_CONTENT_PLACEHOLDER;
+
+  # Symlink to /src for test script
   systemd.tmpfiles.rules = [
-    "f /src/fx-flathub-detect.sh 0755 root root - SCRIPT_CONTENT_PLACEHOLDER"
+    "L /src/fx-flathub-detect.sh - - - - /etc/flathub-detect.sh"
   ];
 
   # Auto-login for root on serial console
