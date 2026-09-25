@@ -13,7 +13,7 @@
       packages.x86_64-linux.flathub-test-vm = (nixpkgs.lib.nixosSystem {
         system = "x86_64-linux";
         modules = [
-          nixpkgs.nixosModules."virtualisation/qemu-vm"
+          (import (nixpkgs + "/nixos/modules/virtualisation/qemu-vm.nix"))
           ./nixos-test-vm.nix
           {
             virtualisation = {
