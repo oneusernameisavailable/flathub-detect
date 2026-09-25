@@ -12,7 +12,7 @@
         config = { allowUnfree = true; };
       };
 
-      makeVM = system: pkgsFor.system.lib.nixosSystem {
+      makeVM = system: pkgsFor system lib.nixosSystem {
         system = system;
         modules = [
           {
@@ -36,8 +36,8 @@
 
             system.build.vm = { config, pkgs, ... }: let
               toplevel = config.system.build.toplevel;
-            in pkgsFor.system.runCommandLocal "nixos-vm" {
-              buildInputs = [ pkgsFor.system.qemu ];
+            in pkgsFor system.runCommandLocal "nixos-vm" {
+              buildInputs = [ pkgs.qemu ];
               toplevel = toplevel;
             } ''
               mkdir -p $out
@@ -49,7 +49,12 @@
       };
 
     in {
-      nixosConfigurations.flathub-test-vm = pkgsFor."x86_64-linux".lib.nixosSystem {
+      nixosConfigurations.flathub-test-vm = self.packages.x86_64-linux.flathub-test-vm;
+
+      packages.x86_64-linux.flathub-test-vm = (import nixpkgs {
+        system = "x86_64-linux";
+        config = { allowUnfree = true; };
+      }).lib.nixosSystem {
         system = "x86_64-linux";
         modules = [
           {
@@ -73,8 +78,8 @@
 
             system.build.vm = { config, pkgs, ... }: let
               toplevel = config.system.build.toplevel;
-            in pkgsFor."x86_64-linux".runCommandLocal "nixos-vm" {
-              buildInputs = [ pkgsFor."x86_64-linux".qemu ];
+            in pkgs.runCommandLocal "nixos-vm" {
+              buildInputs = [ pkgs.qemu ];
               toplevel = toplevel;
             } ''
               mkdir -p $out
@@ -85,7 +90,7 @@
         ];
       };
 
-      packages.x86_64-linux.flathub-test-vm = pkgsFor."x86_64-linux".lib.nixosSystem {
+      nixosConfigurations.flathub-test-vm = pkgs.lib.nixosSystem {
         system = "x86_64-linux";
         modules = [
           {
@@ -109,8 +114,8 @@
 
             system.build.vm = { config, pkgs, ... }: let
               toplevel = config.system.build.toplevel;
-            in pkgsFor."x86_64-linux".runCommandLocal "nixos-vm" {
-              buildInputs = [ pkgsFor."x86_64-linux".qemu ];
+            in pkgs.runCommandLocal "nixos-vm" {
+              buildInputs = [ pkgs.qemu ];
               toplevel = toplevel;
             } ''
               mkdir -p $out
