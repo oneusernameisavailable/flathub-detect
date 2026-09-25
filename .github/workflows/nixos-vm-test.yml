@@ -66,6 +66,8 @@ jobs:
               echo \"PATH: \$PATH\"
               which flatpak || echo \"flatpak not in PATH\"
               ls -la /run/current-system/sw/bin/flatpak 2>/dev/null || echo \"flatpak not in /run/current-system/sw/bin\"
+              echo \"flatpak --version: \$(flatpak --version 2>&1)\"
+              flatpak --version 2>&1 | head -1
               source /src/fx-flathub-detect.sh
               flathub_detect
               echo STATE: \$FLATHUB_STATE
