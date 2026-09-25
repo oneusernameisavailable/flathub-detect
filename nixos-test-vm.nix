@@ -60,7 +60,7 @@
   systemd.services.copy-test-script = {
     description = "Copy test script to VM";
     after = [ "local-fs.target" ];
-    before = [ "flathub-setup" ];
+    before = [ "flathub-setup.service" ];
     wantedBy = [ "multi-user.target" ];
     serviceConfig = {
       Type = "oneshot";
