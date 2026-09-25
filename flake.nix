@@ -12,7 +12,7 @@
         config = { allowUnfree = true; };
       };
 
-      makeVM = system: pkgsFor system lib.nixosSystem {
+      makeVM = system: pkgsFor system.lib.nixosSystem {
         system = system;
         modules = [
           {
@@ -49,12 +49,7 @@
       };
 
     in {
-      nixosConfigurations.flathub-test-vm = self.packages.x86_64-linux.flathub-test-vm;
-
-      packages.x86_64-linux.flathub-test-vm = (import nixpkgs {
-        system = "x86_64-linux";
-        config = { allowUnfree = true; };
-      }).lib.nixosSystem {
+      nixosConfigurations.flathub-test-vm = pkgsFor."x86_64-linux".lib.nixosSystem {
         system = "x86_64-linux";
         modules = [
           {
@@ -78,8 +73,8 @@
 
             system.build.vm = { config, pkgs, ... }: let
               toplevel = config.system.build.toplevel;
-            in pkgs.runCommandLocal "nixos-vm" {
-              buildInputs = [ pkgs.qemu ];
+            in pkgsFor."x86_64-linux".runCommandLocal "nixos-vm" {
+              buildInputs = [ pkgsFor."x86_64-linux".qemu ];
               toplevel = toplevel;
             } ''
               mkdir -p $out
@@ -90,7 +85,10 @@
         ];
       };
 
-      nixosConfigurations.flathub-test-vm = pkgs.lib.nixosSystem {
+      packages.x86_64-linux.flathub-test-vm = (import nixpkgs {
+        system = "x86_64-linux";
+        config = { allowUnfree = true; };
+      }).lib.nixosSystem {
         system = "x86_64-linux";
         modules = [
           {
