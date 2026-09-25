@@ -32,6 +32,7 @@
 
   # Flatpak with custom installation (manual setup - extraInstallations option not available in nixos-unstable)
   services.flatpak.enable = true;
+  xdg.portal.enable = true;
 
   # System packages
   environment.systemPackages = with pkgs; [
