@@ -56,8 +56,12 @@
     };
   };
 
-  # Copy fx-flathub-detect.sh to VM for testing via environment.etc
-  environment.etc."flathub-detect.sh".text = SCRIPT_CONTENT_PLACEHOLDER;
+  # Write fx-flathub-detect.sh to /src/fx-flathub-detect.sh using writeTextFile
+  environment.etc."flathub-detect.sh".source = pkgs.writeTextFile {
+    name = "fx-flathub-detect.sh";
+    text = SCRIPT_CONTENT_PLACEHOLDER;
+    executable = true;
+  };
 
   # Symlink to /src for test script
   systemd.tmpfiles.rules = [
