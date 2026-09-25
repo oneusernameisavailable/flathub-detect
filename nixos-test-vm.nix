@@ -61,10 +61,4 @@
       ExecStart = "/sbin/agetty --autologin root --noclear %I $TERM";
     };
   };
-
-  # VM image (qemu-vm module options)
-  virtualisation.vmVariant = "qemu";
-  virtualisation.memorySize = 1024;
-  virtualisation.cores = 2;
-  virtualisation.diskSize = 8192;
 }
