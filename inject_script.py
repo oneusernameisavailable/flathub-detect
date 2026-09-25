@@ -14,8 +14,8 @@ def main():
     with open(script_file, 'r') as f:
         content = f.read()
     
-    # Escape for Nix string: escape backslashes, quotes, and newlines
-    content = content.replace('\\', '\\\\').replace('"', '\\"').replace('\n', '\\n')
+    # Escape for Nix string: escape backslashes, quotes, dollars, and newlines
+    content = content.replace('\\', '\\\\').replace('$', '$$').replace('"', '\\"').replace('\n', '\\n')
     # Wrap in quotes for Nix string
     content = f'"{content}"'
     
