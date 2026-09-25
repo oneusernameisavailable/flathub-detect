@@ -20,7 +20,7 @@
     enable = true;
     settings = {
       PermitRootLogin = "yes";
-      PasswordAuthentication = "yes";
+      PasswordAuthentication = true;
     };
   };
 
