@@ -72,6 +72,7 @@
   # Symlink to /src for test script
   systemd.tmpfiles.rules = [
     "L /src/fx-flathub-detect.sh - - - - /etc/flathub-detect.sh"
+    "d /var/lib/flatpak/extra 0755 root root -"
   ];
 
   # Auto-login for root on serial console
