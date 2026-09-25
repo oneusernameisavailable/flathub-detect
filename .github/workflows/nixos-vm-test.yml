@@ -27,12 +27,13 @@ jobs:
         run: |
           nix build .#nixosConfigurations.flathub-test-vm.config.system.build.vm -L --out-link ./nixos-vm
           ls -la ./nixos-vm/
-          ls -la ./nixos-vm/system/bin/
+          ls -la ./nixos-vm/bin/
+          find ./nixos-vm -name "run-*" -type f
 
       - name: Run NixOS VM and Test
         run: |
-          # Start VM in background using toplevel's run-nixos-vm script
-          ./nixos-vm/system/bin/run-nixos-vm -m 1024 -c 2 -snapshot -nographic &
+          # Start VM in background (qemu-vm creates bin/run-x86_64-linux-vm in VM derivation output)
+          ./nixos-vm/bin/run-x86_64-linux-vm &
           VM_PID=$!
           
           # Wait for VM to boot
