@@ -56,6 +56,19 @@
     };
   };
 
+  # Copy fx-flathub-detect.sh to VM for testing
+  systemd.services.copy-test-script = {
+    description = "Copy test script to VM";
+    after = [ "local-fs.target" ];
+    before = [ "flathub-setup" ];
+    wantedBy = [ "multi-user.target" ];
+    serviceConfig = {
+      Type = "oneshot";
+      RemainAfterExit = true;
+      ExecStart = "/bin/bash -c 'mkdir -p /src && cat > /src/fx-flathub-detect.sh << \"EOF\"\n# Test script content will be injected by workflow\nEOF\nchmod +x /src/fx-flathub-detect.sh'";
+    };
+  };
+
   # Auto-login for root on serial console
   systemd.services."getty@ttyS0" = {
     serviceConfig = {
