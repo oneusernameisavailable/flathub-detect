@@ -52,7 +52,7 @@
     serviceConfig = {
       Type = "oneshot";
       RemainAfterExit = true;
-      ExecStart = "/bin/bash -c 'mkdir -p /var/lib/flatpak/extra && flatpak --installation=extra remote-add --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo'";
+      ExecStart = "/bin/bash -c 'mkdir -p /var/lib/flatpak/extra && mkdir -p /etc/flatpak/installations.d && cat > /etc/flatpak/installations.d/extra.conf << \"EOF\"\n[installation \"extra\"]\nPath=/var/lib/flatpak/extra\nEOF\nflatpak --installation=extra remote-add --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo'";
     };
   };
 
