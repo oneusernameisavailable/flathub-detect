@@ -68,6 +68,10 @@ jobs:
               ls -la /run/current-system/sw/bin/flatpak 2>/dev/null || echo \"flatpak not in /run/current-system/sw/bin\"
               echo \"flatpak --version: \$(flatpak --version 2>&1)\"
               flatpak --version 2>&1 | head -1
+              echo \"Checking installations.d:\"
+              ls -la /etc/flatpak/installations.d/ 2>/dev/null || echo \"no installations.d\"
+              cat /etc/flatpak/installations.d/extra.conf 2>/dev/null || echo \"no extra.conf\"
+              flatpak --installation=extra remote-list 2>&1 || echo \"flatpak --installation=extra failed\"
               source /src/fx-flathub-detect.sh
               flathub_detect
               echo STATE: \$FLATHUB_STATE
