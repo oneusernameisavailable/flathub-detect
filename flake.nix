@@ -26,7 +26,7 @@
               ${toplevel}/bin/run-nixos-vm -m 1024 -c 2 -snapshot -nographic > $out/run-vm.sh
               chmod +x $out/run-vm.sh
             '';
-            });
+            );
           }
         ];
       }).config.system.build.vm;
