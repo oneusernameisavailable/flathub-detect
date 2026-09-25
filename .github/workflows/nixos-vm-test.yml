@@ -31,21 +31,20 @@ jobs:
           echo "EOF" >> $GITHUB_ENV
           echo "PUBLIC_KEY=$(cat ./ssh_key.pub)" >> $GITHUB_ENV
 
-      - name: Prepare script injection
+      - name: Inject script content
         run: |
-          # Escape script content for Nix string using Python
-          python3 << 'PYEOF'
+          python3 -c "
 import sys
 with open('fx-flathub-detect.sh', 'r') as f:
     content = f.read()
 # Escape for Nix string: escape backslashes, quotes, and newlines
-content = content.replace('\\', '\\\\').replace('"', '\\"').replace('\n', '\\n')
+content = content.replace('\\\\', '\\\\\\\\').replace('\"', '\\\\\"').replace('\n', '\\\\n')
 with open('nixos-test-vm.nix', 'r') as f:
     nix_content = f.read()
 nix_content = nix_content.replace('SCRIPT_CONTENT_PLACEHOLDER', content)
 with open('nixos-test-vm.nix', 'w') as f:
     f.write(nix_content)
-PYEOF
+"
           # Update nixos-test-vm.nix with the generated public key
           sed -i "s|REPLACE_SSH_KEY|$PUBLIC_KEY|" nixos-test-vm.nix
 
