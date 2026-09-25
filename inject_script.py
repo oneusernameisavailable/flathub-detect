@@ -16,6 +16,8 @@ def main():
     
     # Escape for Nix string: escape backslashes, quotes, and newlines
     content = content.replace('\\', '\\\\').replace('"', '\\"').replace('\n', '\\n')
+    # Wrap in quotes for Nix string
+    content = f'"{content}"'
     
     with open(nix_file, 'r') as f:
         nix_content = f.read()
