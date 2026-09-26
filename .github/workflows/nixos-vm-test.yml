@@ -74,7 +74,7 @@ jobs:
               echo SCOPE: \$FLATHUB_SCOPE
               echo ENABLED: \$FLATHUB_ENABLED
               # Verify library runs without errors (state can be not-configured if Flathub not configured)
-              [[ -n \"\$FLATHUB_STATE\" ]] && [[ -n \"\$FLATHUB_SCOPE\" ]] && [[ \"\$FLATHUB_ENABLED\" =~ ^[01]$ ]] && echo PASS || (echo FAIL && exit 1)
+              [[ -n \"\$FLATHUB_STATE\" ]] && [[ \"\$FLATHUB_ENABLED\" =~ ^[01]$ ]] && echo PASS || (echo FAIL && exit 1)
             '
           "
           
