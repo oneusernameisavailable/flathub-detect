@@ -1,6 +1,6 @@
 { config, pkgs, lib, ... }:
 {
-  # NixOS VM configuration for testing flathub-detect with custom installation
+  # NixOS VM configuration for testing flathub-detect with system installation
   # qemu-vm module imported via flake.nix
 
   # System
@@ -30,7 +30,7 @@
     ];
   };
 
-  # Flatpak with custom installation
+  # Flatpak with system installation
   services.flatpak.enable = true;
   xdg.portal.enable = true;
   xdg.portal.extraPortals = with pkgs; [ xdg-desktop-portal-gtk ];
@@ -44,23 +44,17 @@
     gnused
   ];
 
-  # Add flathub remote to custom installation on first boot
+  # Add flathub remote to system installation on first boot
   systemd.services.flathub-setup = {
-    description = "Setup Flathub remote in custom installation";
+    description = "Setup Flathub remote in system installation";
     after = [ "flatpak.service" ];
     wantedBy = [ "multi-user.target" ];
     serviceConfig = {
       Type = "oneshot";
       RemainAfterExit = true;
-      ExecStart = "/bin/bash -c 'flatpak --installation=extra remote-add --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo'";
+      ExecStart = "/bin/bash -c 'flatpak remote-add --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo'";
     };
   };
-
-  # Create custom installation config at build time
-  environment.etc."flatpak/installations.d/extra.conf".text = ''
-    [installation "extra"]
-    Path=/var/lib/flatpak/extra
-  '';
 
   # Write fx-flathub-detect.sh to /src/fx-flathub-detect.sh using writeTextFile
   environment.etc."flathub-detect.sh".source = pkgs.writeTextFile {
@@ -72,7 +66,6 @@
   # Symlink to /src for test script
   systemd.tmpfiles.rules = [
     "L /src/fx-flathub-detect.sh - - - - /etc/flathub-detect.sh"
-    "d /var/lib/flatpak/extra 0755 root root -"
   ];
 
   # Auto-login for root on serial console

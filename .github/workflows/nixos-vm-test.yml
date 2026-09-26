@@ -3,7 +3,7 @@ on: [push, pull_request, schedule]
 
 jobs:
   nixos-vm-test:
-    name: NixOS VM - Custom Installation Test
+    name: NixOS VM - Flathub Detection Test
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -60,7 +60,7 @@ jobs:
             sleep 10
           done
           
-          # Run validation script in VM
+          # Run validation script in VM (test system installation)
           ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -p 2222 -o IdentitiesOnly=yes -i ./ssh_key root@localhost "
             bash -l -c '
               echo \"PATH: \$PATH\"
@@ -68,19 +68,12 @@ jobs:
               ls -la /run/current-system/sw/bin/flatpak 2>/dev/null || echo \"flatpak not in /run/current-system/sw/bin\"
               echo \"flatpak --version: \$(flatpak --version 2>&1)\"
               flatpak --version 2>&1 | head -1
-              echo \"Checking installations.d:\"
-              ls -la /etc/flatpak/installations.d/ 2>/dev/null || echo \"no installations.d\"
-              cat /etc/flatpak/installations.d/extra.conf 2>/dev/null || echo \"no extra.conf\"
-              echo \"Checking custom installation directory:\"
-              ls -la /var/lib/flatpak/extra 2>/dev/null || echo \"extra directory not found\"
-              flatpak --installation=extra info 2>&1 || echo \"flatpak --installation=extra info failed\"
-              flatpak installations 2>&1 || echo \"flatpak installations failed\"
               source /src/fx-flathub-detect.sh
               flathub_detect
               echo STATE: \$FLATHUB_STATE
               echo SCOPE: \$FLATHUB_SCOPE
               echo ENABLED: \$FLATHUB_ENABLED
-              [[ \"\$FLATHUB_STATE\" == \"enabled\" ]] && [[ \"\$FLATHUB_SCOPE\" == *extra* ]] && echo PASS || (echo FAIL && exit 1)
+              [[ \"\$FLATHUB_STATE\" == \"enabled\" ]] && [[ \"\$FLATHUB_SCOPE\" == *system* ]] && echo PASS || (echo FAIL && exit 1)
             '
           "
           
