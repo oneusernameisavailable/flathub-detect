@@ -60,7 +60,7 @@ jobs:
             sleep 10
           done
           
-# Run validation script in VM
+          # Run validation script in VM
           ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -p 2222 -o IdentitiesOnly=yes -i ./ssh_key root@localhost "
             bash -l -c '
               echo \"PATH: \$PATH\"
