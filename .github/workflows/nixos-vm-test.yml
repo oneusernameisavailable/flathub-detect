@@ -60,7 +60,7 @@ jobs:
             sleep 10
           done
           
-          # Run validation script in VM
+# Run validation script in VM
           ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -p 2222 -o IdentitiesOnly=yes -i ./ssh_key root@localhost "
             bash -l -c '
               echo \"PATH: \$PATH\"
@@ -71,7 +71,10 @@ jobs:
               echo \"Checking installations.d:\"
               ls -la /etc/flatpak/installations.d/ 2>/dev/null || echo \"no installations.d\"
               cat /etc/flatpak/installations.d/extra.conf 2>/dev/null || echo \"no extra.conf\"
-              flatpak --installation=extra remote-list 2>&1 || echo \"flatpak --installation=extra failed\"
+              echo \"Checking custom installation directory:\"
+              ls -la /var/lib/flatpak/extra 2>/dev/null || echo \"extra directory not found\"
+              flatpak --installation=extra info 2>&1 || echo \"flatpak --installation=extra info failed\"
+              flatpak installations 2>&1 || echo \"flatpak installations failed\"
               source /src/fx-flathub-detect.sh
               flathub_detect
               echo STATE: \$FLATHUB_STATE
